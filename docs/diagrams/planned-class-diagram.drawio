@@ -1,0 +1,594 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="1 - Sales and imports" id="p0">
+    <mxGraphModel dx="1500" dy="1000" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1600" pageHeight="1240" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="01 / Sales and imports" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=24;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="20" width="1500" height="40" />
+        </mxCell>
+        <mxCell id="subtitle" value="PLANNED ARCHITECTURE • Core model plus future extensions • Design target, not current implementation." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="65" width="1500" height="55" />
+        </mxCell>
+        <mxCell id="Empresa" value="Company" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="160" width="340" height="150" />
+        </mxCell>
+        <mxCell id="Empresa_a" value="- id: int&#10;- name: str&#10;- sector: str" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="Empresa">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="Empresa_m" value="+ update_details(name, sector): None" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="Empresa">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="34" />
+        </mxCell>
+        <mxCell id="Produto" value="Product" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="470" width="340" height="150" />
+        </mxCell>
+        <mxCell id="Produto_a" value="- id: int&#10;- name: str&#10;- category: str" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="Produto">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="Produto_m" value="+ update_details(name, category): None" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="Produto">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="34" />
+        </mxCell>
+        <mxCell id="Venda" value="Sale" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="480" y="160" width="340" height="172" />
+        </mxCell>
+        <mxCell id="Venda_a" value="- id: str&#10;- date_time: datetime" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="Venda">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="56" />
+        </mxCell>
+        <mxCell id="Venda_m" value="+ add_item(product, quantity, price, cost): None&#10;+ calculate_total(): Decimal&#10;+ calculate_cost(): Decimal" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="Venda">
+          <mxGeometry as="geometry" x="0" y="94" width="340" height="78" />
+        </mxCell>
+        <mxCell id="ItemVenda" value="SaleItem" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="480" y="470" width="340" height="172" />
+        </mxCell>
+        <mxCell id="ItemVenda_a" value="- quantity: int&#10;- unit_price: Decimal&#10;- unit_cost: Decimal" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ItemVenda">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="ItemVenda_m" value="+ calculate_subtotal(): Decimal&#10;+ calculate_cost(): Decimal" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ItemVenda">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="56" />
+        </mxCell>
+        <mxCell id="ConjuntoVendas" value="SalesDataset" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="940" y="160" width="340" height="128" />
+        </mxCell>
+        <mxCell id="ConjuntoVendas_a" value="- sales: list[Sale]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ConjuntoVendas">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ConjuntoVendas_m" value="+ filter_period(start, end): SalesDataset&#10;+ to_dataframe(): DataFrame" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ConjuntoVendas">
+          <mxGeometry as="geometry" x="0" y="72" width="340" height="56" />
+        </mxCell>
+        <mxCell id="ImportadorDados" value="«abstract»&#10;DataImporter" style="swimlane;html=0;startSize=54;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="940" y="470" width="340" height="116" />
+        </mxCell>
+        <mxCell id="ImportadorDados_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ImportadorDados">
+          <mxGeometry as="geometry" x="0" y="54" width="340" height="28" />
+        </mxCell>
+        <mxCell id="ImportadorDados_m" value="+ load(path, company): SalesDataset" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ImportadorDados">
+          <mxGeometry as="geometry" x="0" y="82" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ImportadorCSV" value="CSVImporter" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="940" y="750" width="340" height="100" />
+        </mxCell>
+        <mxCell id="ImportadorCSV_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ImportadorCSV">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="28" />
+        </mxCell>
+        <mxCell id="ImportadorCSV_m" value="+ load(path, company): SalesDataset" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ImportadorCSV">
+          <mxGeometry as="geometry" x="0" y="66" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ValidadorVendas" value="SalesValidator" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="480" y="800" width="340" height="106" />
+        </mxCell>
+        <mxCell id="ValidadorVendas_a" value="- required_columns: set[str]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ValidadorVendas">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ValidadorVendas_m" value="+ validate(data: DataFrame): None" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ValidadorVendas">
+          <mxGeometry as="geometry" x="0" y="72" width="340" height="34" />
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=none;" edge="1" parent="1" source="Empresa" target="Produto">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l2" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e1">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l3" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e1">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=none;" edge="1" parent="1" source="Empresa" target="Venda">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l5" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e4">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l6" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e4">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;startArrow=diamond;startFill=1;endArrow=none;" edge="1" parent="1" source="Venda" target="ItemVenda">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l8" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e7">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l9" value="1..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e7">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=open;endFill=0;" edge="1" parent="1" source="ItemVenda" target="Produto">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l11" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e10">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l12" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e10">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=none;" edge="1" parent="1" source="ConjuntoVendas" target="Venda">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l14" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e13">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l15" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e13">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=block;endFill=0;" edge="1" parent="1" source="ImportadorCSV" target="ImportadorDados">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e17" value="returns" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="ImportadorDados" target="ConjuntoVendas">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e18" value="validates" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="ImportadorCSV" target="ValidadorVendas">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="notes" value="IMPORT CONTRACT&#10;• Each CSV row is one item; sale_id groups a transaction. Product IDs are unique within a company.&#10;• Required columns: sale_id, date_time, product_id, product, category, quantity, unit_price, unit_cost.&#10;• One file belongs to the selected company. A sale cannot mix companies or transaction timestamps.&#10;• Quantity must be a positive integer; prices/costs must be finite and nonnegative; reject invalid or missing values.&#10;• Reject duplicate (sale_id, product_id) rows; aggregate units into quantity before import. Validate the whole file before creating objects.&#10;• Historical unit prices/costs belong to SaleItem. Filtered datasets may reference the same sales." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="1010" width="1480" height="180" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="2 - Analytics" id="p1">
+    <mxGraphModel dx="1500" dy="1000" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1600" pageHeight="1240" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="02 / Analytics and results" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=24;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="20" width="1500" height="40" />
+        </mxCell>
+        <mxCell id="subtitle" value="PLANNED ARCHITECTURE • Analysis subclasses share run(data) → AnalysisResult. Period comparison is added on page 5." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="65" width="1500" height="55" />
+        </mxCell>
+        <mxCell id="Analise" value="«abstract»&#10;Analysis" style="swimlane;html=0;startSize=54;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="160" width="340" height="116" />
+        </mxCell>
+        <mxCell id="Analise_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="Analise">
+          <mxGeometry as="geometry" x="0" y="54" width="340" height="28" />
+        </mxCell>
+        <mxCell id="Analise_m" value="+ run(data: SalesDataset): AnalysisResult" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="Analise">
+          <mxGeometry as="geometry" x="0" y="82" width="340" height="34" />
+        </mxCell>
+        <mxCell id="AnaliseFinanceira" value="FinancialAnalysis" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="430" width="340" height="100" />
+        </mxCell>
+        <mxCell id="AnaliseFinanceira_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="AnaliseFinanceira">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="28" />
+        </mxCell>
+        <mxCell id="AnaliseFinanceira_m" value="+ run(data: SalesDataset): AnalysisResult" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="AnaliseFinanceira">
+          <mxGeometry as="geometry" x="0" y="66" width="340" height="34" />
+        </mxCell>
+        <mxCell id="AnaliseProdutos" value="ProductAnalysis" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="430" width="340" height="106" />
+        </mxCell>
+        <mxCell id="AnaliseProdutos_a" value="- limit: int" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="AnaliseProdutos">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="34" />
+        </mxCell>
+        <mxCell id="AnaliseProdutos_m" value="+ run(data: SalesDataset): AnalysisResult" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="AnaliseProdutos">
+          <mxGeometry as="geometry" x="0" y="72" width="340" height="34" />
+        </mxCell>
+        <mxCell id="AnaliseTemporal" value="TemporalAnalysis" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1120" y="430" width="340" height="106" />
+        </mxCell>
+        <mxCell id="AnaliseTemporal_a" value="- frequency: str" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="AnaliseTemporal">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="34" />
+        </mxCell>
+        <mxCell id="AnaliseTemporal_m" value="+ run(data: SalesDataset): AnalysisResult" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="AnaliseTemporal">
+          <mxGeometry as="geometry" x="0" y="72" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ConjuntoVendas" value="SalesDataset" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="760" width="340" height="128" />
+        </mxCell>
+        <mxCell id="ConjuntoVendas_a" value="- sales: list[Sale]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ConjuntoVendas">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ConjuntoVendas_m" value="+ filter_period(start, end): SalesDataset&#10;+ to_dataframe(): DataFrame" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ConjuntoVendas">
+          <mxGeometry as="geometry" x="0" y="72" width="340" height="56" />
+        </mxCell>
+        <mxCell id="ResultadoAnalise" value="AnalysisResult" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="600" y="760" width="340" height="144" />
+        </mxCell>
+        <mxCell id="ResultadoAnalise_a" value="- title: str&#10;- metrics: dict&#10;- table: DataFrame" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ResultadoAnalise">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="ResultadoAnalise_m" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ResultadoAnalise">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="28" />
+        </mxCell>
+        <mxCell id="GeradorGrafico" value="ChartGenerator" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1120" y="760" width="340" height="100" />
+        </mxCell>
+        <mxCell id="GeradorGrafico_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="GeradorGrafico">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="28" />
+        </mxCell>
+        <mxCell id="GeradorGrafico_m" value="+ generate(result, kind): Figure" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="GeradorGrafico">
+          <mxGeometry as="geometry" x="0" y="66" width="340" height="34" />
+        </mxCell>
+        <mxCell id="e19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=block;endFill=0;" edge="1" parent="1" source="AnaliseFinanceira" target="Analise">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=block;endFill=0;" edge="1" parent="1" source="AnaliseProdutos" target="Analise">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=block;endFill=0;" edge="1" parent="1" source="AnaliseTemporal" target="Analise">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e22" value="receives" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="Analise" target="ConjuntoVendas">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e23" value="returns" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="Analise" target="ResultadoAnalise">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e24" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="GeradorGrafico" target="ResultadoAnalise">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="notes" value="CALCULATION RULES&#10;Financial: revenue, cost, gross profit, gross margin and average order value per distinct sale_id.&#10;For zero revenue, gross margin is undefined; for zero sales, average order value is undefined.&#10;Products: quantity/revenue rankings among products present in the selected sales; unsold catalog products are excluded initially.&#10;Temporal: daily, weekly, monthly or yearly totals; peak hour by number of distinct transactions. Use one company time zone.&#10;Pandas/NumPy support calculations; Matplotlib renders charts. Libraries are not additional domain entities." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="990" width="1460" height="180" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="3 - Reports and desktop" id="p2">
+    <mxGraphModel dx="1500" dy="1000" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1600" pageHeight="1240" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="03 / Reports, persistence and desktop" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=24;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="20" width="1500" height="40" />
+        </mxCell>
+        <mxCell id="subtitle" value="FUTURE DESIGN • Planned extensions. Repeated class names across pages refer to the same classes." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="65" width="1500" height="55" />
+        </mxCell>
+        <mxCell id="ExportadorRelatorio" value="«abstract»&#10;ReportExporter" style="swimlane;html=0;startSize=54;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="150" width="340" height="116" />
+        </mxCell>
+        <mxCell id="ExportadorRelatorio_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ExportadorRelatorio">
+          <mxGeometry as="geometry" x="0" y="54" width="340" height="28" />
+        </mxCell>
+        <mxCell id="ExportadorRelatorio_m" value="+ export(report, path): None" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ExportadorRelatorio">
+          <mxGeometry as="geometry" x="0" y="82" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ExportadorPDF" value="PDFExporter" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="410" width="340" height="100" />
+        </mxCell>
+        <mxCell id="ExportadorPDF_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ExportadorPDF">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="28" />
+        </mxCell>
+        <mxCell id="ExportadorPDF_m" value="+ export(report, path): None" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ExportadorPDF">
+          <mxGeometry as="geometry" x="0" y="66" width="340" height="34" />
+        </mxCell>
+        <mxCell id="Relatorio" value="Report" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="580" y="150" width="340" height="150" />
+        </mxCell>
+        <mxCell id="Relatorio_a" value="- title: str&#10;- start: datetime&#10;- end: datetime" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="Relatorio">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="Relatorio_m" value="+ add_result(result): None" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="Relatorio">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ResultadoAnalise" value="AnalysisResult" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1100" y="150" width="340" height="144" />
+        </mxCell>
+        <mxCell id="ResultadoAnalise_a" value="- title: str&#10;- metrics: dict&#10;- table: DataFrame" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ResultadoAnalise">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="ResultadoAnalise_m" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ResultadoAnalise">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="28" />
+        </mxCell>
+        <mxCell id="JanelaPrincipal" value="MainWindow" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="580" y="440" width="340" height="144" />
+        </mxCell>
+        <mxCell id="JanelaPrincipal_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="JanelaPrincipal">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="28" />
+        </mxCell>
+        <mxCell id="JanelaPrincipal_m" value="+ import_file(): None&#10;+ register_sale(): None&#10;+ refresh_dashboard(): None" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="JanelaPrincipal">
+          <mxGeometry as="geometry" x="0" y="66" width="340" height="78" />
+        </mxCell>
+        <mxCell id="ServicoVendas" value="SalesService" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="580" y="740" width="340" height="144" />
+        </mxCell>
+        <mxCell id="ServicoVendas_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ServicoVendas">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="28" />
+        </mxCell>
+        <mxCell id="ServicoVendas_m" value="+ import_sales(path, company): None&#10;+ register_sale(sale: Sale): None&#10;+ query_sales(company, start, end): SalesDataset" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ServicoVendas">
+          <mxGeometry as="geometry" x="0" y="66" width="340" height="78" />
+        </mxCell>
+        <mxCell id="RepositorioVendas" value="«abstract»&#10;SaleRepository" style="swimlane;html=0;startSize=54;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1100" y="440" width="340" height="138" />
+        </mxCell>
+        <mxCell id="RepositorioVendas_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="RepositorioVendas">
+          <mxGeometry as="geometry" x="0" y="54" width="340" height="28" />
+        </mxCell>
+        <mxCell id="RepositorioVendas_m" value="+ save(sale): None&#10;+ query(company, start, end): SalesDataset" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="RepositorioVendas">
+          <mxGeometry as="geometry" x="0" y="82" width="340" height="56" />
+        </mxCell>
+        <mxCell id="RepositorioVendasSQLAlchemy" value="SQLAlchemySaleRepository" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1100" y="790" width="340" height="128" />
+        </mxCell>
+        <mxCell id="RepositorioVendasSQLAlchemy_a" value="- session: Session" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="RepositorioVendasSQLAlchemy">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="34" />
+        </mxCell>
+        <mxCell id="RepositorioVendasSQLAlchemy_m" value="+ save(sale): None&#10;+ query(company, start, end): SalesDataset" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="RepositorioVendasSQLAlchemy">
+          <mxGeometry as="geometry" x="0" y="72" width="340" height="56" />
+        </mxCell>
+        <mxCell id="ImportadorDados" value="«abstract»&#10;DataImporter" style="swimlane;html=0;startSize=54;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="790" width="340" height="116" />
+        </mxCell>
+        <mxCell id="ImportadorDados_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ImportadorDados">
+          <mxGeometry as="geometry" x="0" y="54" width="340" height="28" />
+        </mxCell>
+        <mxCell id="ImportadorDados_m" value="+ load(path, company): SalesDataset" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ImportadorDados">
+          <mxGeometry as="geometry" x="0" y="82" width="340" height="34" />
+        </mxCell>
+        <mxCell id="e25" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=block;endFill=0;" edge="1" parent="1" source="ExportadorPDF" target="ExportadorRelatorio">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e26" value="receives" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="ExportadorRelatorio" target="Relatorio">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e27" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=none;" edge="1" parent="1" source="Relatorio" target="ResultadoAnalise">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l28" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e27">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l29" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e27">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e30" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=open;endFill=0;" edge="1" parent="1" source="JanelaPrincipal" target="ServicoVendas">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l31" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e30">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l32" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e30">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e33" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=open;endFill=0;" edge="1" parent="1" source="ServicoVendas" target="RepositorioVendas">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l34" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e33">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l35" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e33">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e36" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=block;endFill=0;" edge="1" parent="1" source="RepositorioVendasSQLAlchemy" target="RepositorioVendas">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e37" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=open;endFill=0;" edge="1" parent="1" source="ServicoVendas" target="ImportadorDados">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l38" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e37">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l39" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e37">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e40" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="JanelaPrincipal" target="ExportadorRelatorio">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="notes" value="FUTURE CONTRACTS&#10;• SalesService coordinates manual sales and imports. Saving a sale and its items is atomic.&#10;• Reject a sale_id already stored for the selected company; importing a file twice must not double revenue.&#10;• SQLAlchemySaleRepository uses SQLite and loads the complete sale aggregate. query returns a SalesDataset.&#10;• Reports reference a company and a period; AnalysisResult objects can be shared by different reports.&#10;• MainWindow also invokes Analysis and ChartGenerator from page 2. Business calculations stay outside the UI.&#10;• See the extension page for catalog management and explicit reporting/presentation connections." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="1010" width="1480" height="180" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="4 - UML guide" id="p3">
+    <mxGraphModel dx="1500" dy="1000" grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1600" pageHeight="1240" math="0" shadow="0">
+      <root>
+        <mxCell id="0" value="" />
+        <mxCell id="1" parent="0" value="" />
+        <mxCell id="title" value="04 / Reading the relationships" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=24;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="20" width="1500" height="40" />
+        </mxCell>
+        <mxCell id="subtitle" value="Arrows describe relationships between classes, not execution order." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="65" width="1500" height="55" />
+        </mxCell>
+        <mxCell id="AnaliseFinanceira" value="FinancialAnalysis" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="170" width="340" height="100" />
+        </mxCell>
+        <mxCell id="AnaliseFinanceira_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="AnaliseFinanceira">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="28" />
+        </mxCell>
+        <mxCell id="AnaliseFinanceira_m" value="+ run(data: SalesDataset): AnalysisResult" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="AnaliseFinanceira">
+          <mxGeometry as="geometry" x="0" y="66" width="340" height="34" />
+        </mxCell>
+        <mxCell id="Analise" value="«abstract»&#10;Analysis" style="swimlane;html=0;startSize=54;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="650" y="170" width="340" height="116" />
+        </mxCell>
+        <mxCell id="Analise_a" value="" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="Analise">
+          <mxGeometry as="geometry" x="0" y="54" width="340" height="28" />
+        </mxCell>
+        <mxCell id="Analise_m" value="+ run(data: SalesDataset): AnalysisResult" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="Analise">
+          <mxGeometry as="geometry" x="0" y="82" width="340" height="34" />
+        </mxCell>
+        <mxCell id="ItemVenda" value="SaleItem" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="390" width="340" height="172" />
+        </mxCell>
+        <mxCell id="ItemVenda_a" value="- quantity: int&#10;- unit_price: Decimal&#10;- unit_cost: Decimal" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ItemVenda">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="ItemVenda_m" value="+ calculate_subtotal(): Decimal&#10;+ calculate_cost(): Decimal" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ItemVenda">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="56" />
+        </mxCell>
+        <mxCell id="Produto" value="Product" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="650" y="390" width="340" height="150" />
+        </mxCell>
+        <mxCell id="Produto_a" value="- id: int&#10;- name: str&#10;- category: str" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="Produto">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="Produto_m" value="+ update_details(name, category): None" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="Produto">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="34" />
+        </mxCell>
+        <mxCell id="Venda" value="Sale" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="660" width="340" height="172" />
+        </mxCell>
+        <mxCell id="Venda_a" value="- id: str&#10;- date_time: datetime" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="Venda">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="56" />
+        </mxCell>
+        <mxCell id="Venda_m" value="+ add_item(product, quantity, price, cost): None&#10;+ calculate_total(): Decimal&#10;+ calculate_cost(): Decimal" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="Venda">
+          <mxGeometry as="geometry" x="0" y="94" width="340" height="78" />
+        </mxCell>
+        <mxCell id="ItemVenda2" value="SaleItem" style="swimlane;html=0;startSize=38;horizontal=1;rounded=0;fillColor=#e8f0fc;swimlaneFillColor=#ffffff;strokeColor=#46658c;fontStyle=1;fontSize=14;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="650" y="660" width="340" height="172" />
+        </mxCell>
+        <mxCell id="ItemVenda2_a" value="- quantity: int&#10;- unit_price: Decimal&#10;- unit_cost: Decimal" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=12;" vertex="1" parent="ItemVenda2">
+          <mxGeometry as="geometry" x="0" y="38" width="340" height="78" />
+        </mxCell>
+        <mxCell id="ItemVenda2_m" value="+ calculate_subtotal(): Decimal&#10;+ calculate_cost(): Decimal" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;strokeColor=#a9bbcf;" vertex="1" parent="ItemVenda2">
+          <mxGeometry as="geometry" x="0" y="116" width="340" height="56" />
+        </mxCell>
+        <mxCell id="e41" value="é um kind de" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=block;endFill=0;" edge="1" parent="1" source="AnaliseFinanceira" target="Analise">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="e42" value="references" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;endArrow=open;endFill=0;" edge="1" parent="1" source="ItemVenda" target="Produto">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l43" value="0..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e42">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l44" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e42">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e45" value="owns" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;strokeColor=#475569;strokeWidth=1.5;fontSize=12;labelBackgroundColor=#ffffff;startArrow=diamond;startFill=1;endArrow=none;" edge="1" parent="1" source="Venda" target="ItemVenda2">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="l46" value="1" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e45">
+          <mxGeometry as="geometry" x="-0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l47" value="1..*" style="edgeLabel;html=0;align=center;verticalAlign=middle;resizable=0;labelBackgroundColor=#ffffff;fontSize=13;" vertex="1" connectable="0" parent="e45">
+          <mxGeometry as="geometry" x="0.8" y="-15" relative="1">
+            <mxPoint as="offset" x="0" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend" value="INHERITANCE&#10;Hollow triangle points to the base class.&#10;&#10;ASSOCIATION&#10;Solid line connects related objects.&#10;An open arrow indicates navigation.&#10;Without an arrow, navigation is unspecified.&#10;&#10;COMPOSITION&#10;Filled diamond is at the whole.&#10;A part belongs to at most one whole&#10;at a time; its lifecycle follows that whole.&#10;&#10;DEPENDENCY&#10;Dashed line with an open arrow points&#10;to the class being used.&#10;&#10;MULTIPLICITY&#10;1 = exactly one&#10;0..1 = zero or one&#10;0..* = zero or many&#10;1..* = one or many&#10;Read the number next to a class as&#10;how many of its objects may be linked&#10;to one object at the opposite end." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1050" y="150" width="470" height="810" />
+        </mxCell>
+        <mxCell id="footer" value="DESIGN PROPOSAL • Keep the initial diagram aligned with the first implementation; revise future designs as requirements evolve." style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=13;fontColor=#243247;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="60" y="1010" width="1400" height="70" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="5 - Planned extensions" id="future-extensions">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageWidth="1600" pageHeight="1250">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t" value="05 / Planned extensions — application contracts" vertex="1" parent="1" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=14;fontColor=#243247;">
+          <mxGeometry as="geometry" x="40" y="20" width="1450" height="40" />
+        </mxCell>
+        <mxCell id="s" value="FUTURE ONLY • Services coordinate operations. Repository interfaces isolate storage. These are design targets, not implemented features." vertex="1" parent="1" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=14;fontColor=#243247;">
+          <mxGeometry as="geometry" x="40" y="65" width="1450" height="60" />
+        </mxCell>
+        <mxCell id="CompanyService" value="CompanyService&#10;________________________&#10;+ register(name, sector): Company&#10;+ update(company): None&#10;+ list_all(): list[Company]" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="60" y="160" width="300" height="150" />
+        </mxCell>
+        <mxCell id="ProductService" value="ProductService&#10;________________________&#10;+ register(company, name, category): Product&#10;+ update(product): None&#10;+ list_for(company): list[Product]" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="600" y="160" width="300" height="150" />
+        </mxCell>
+        <mxCell id="CatalogRepository" value="CatalogRepository&#10;________________________&#10;«abstract»&#10;+ save_company(company): None&#10;+ save_product(product): None&#10;+ list_companies(): list[Company]&#10;+ list_products(company): list[Product]" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="330" y="430" width="300" height="150" />
+        </mxCell>
+        <mxCell id="SQLAlchemyCatalogRepository" value="SQLAlchemyCatalogRepository&#10;________________________&#10;+ save_company(company): None&#10;+ save_product(product): None&#10;+ list_companies(): list[Company]&#10;+ list_products(company): list[Product]" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="60" y="730" width="300" height="150" />
+        </mxCell>
+        <mxCell id="MainWindow" value="MainWindow&#10;________________________&#10;+ manage_company(): None&#10;+ manage_products(): None&#10;+ refresh_dashboard(): None" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="1100" y="160" width="300" height="150" />
+        </mxCell>
+        <mxCell id="Report" value="Report&#10;________________________&#10;- title: str&#10;- start: datetime&#10;- end: datetime&#10;+ add_result(result): None" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="1100" y="440" width="300" height="150" />
+        </mxCell>
+        <mxCell id="Company" value="Company&#10;________________________&#10;- id: int&#10;- name: str&#10;- sector: str" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="1100" y="760" width="300" height="150" />
+        </mxCell>
+        <mxCell id="PeriodComparisonAnalysis" value="PeriodComparisonAnalysis&#10;________________________&#10;- baseline_start: datetime&#10;- baseline_end: datetime&#10;- current_start: datetime&#10;- current_end: datetime&#10;+ run(data: SalesDataset): AnalysisResult" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="600" y="730" width="300" height="150" />
+        </mxCell>
+        <mxCell id="Analysis" value="Analysis&#10;________________________&#10;«abstract»&#10;+ run(data: SalesDataset): AnalysisResult" vertex="1" parent="1" style="rounded=0;whiteSpace=wrap;html=0;fillColor=#e8f0fc;strokeColor=#46658c;fontColor=#243247;fontSize=12;align=left;spacing=10;">
+          <mxGeometry as="geometry" x="600" y="1010" width="300" height="150" />
+        </mxCell>
+        <mxCell id="ext1" source="CompanyService" target="CatalogRepository" value="uses" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=open;endFill=0;labelBackgroundColor=#ffffff;strokeColor=#475569;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="ext2" source="ProductService" target="CatalogRepository" value="uses" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=open;endFill=0;labelBackgroundColor=#ffffff;strokeColor=#475569;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="ext3" source="MainWindow" target="CompanyService" value="uses" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=open;endFill=0;labelBackgroundColor=#ffffff;strokeColor=#475569;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="ext4" source="MainWindow" target="ProductService" value="uses" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=open;endFill=0;labelBackgroundColor=#ffffff;strokeColor=#475569;dashed=1;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="ext5" source="Report" target="Company" value="company: 1" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;html=0;endArrow=open;endFill=0;labelBackgroundColor=#ffffff;strokeColor=#475569;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="ext6" source="SQLAlchemyCatalogRepository" target="CatalogRepository" value="" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=0;strokeColor=#475569;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="ext7" source="PeriodComparisonAnalysis" target="Analysis" value="" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=0;strokeColor=#475569;">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="n" value="EXTENSION RULES&#10;• Catalog repositories use the same database as sales repositories. Company deletion with sales is rejected.&#10;• MainWindow also uses SalesService, Analysis, ChartGenerator and ReportExporter (pages 2–3).&#10;• A report references exactly one company; a company can have zero or many reports.&#10;• Period comparison runs on the same company dataset. Percentage change is undefined when the baseline is zero.&#10;• Sale items retain historical prices/costs; catalog edits never recalculate historical revenue.&#10;• UI widgets and transaction/session wiring are implementation details to refine during their delivery stage." vertex="1" parent="1" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=14;fontColor=#243247;">
+          <mxGeometry as="geometry" x="60" y="970" width="490" height="245" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,7 +1,7 @@
 [project]
 name = "sales-data-analyzer"
 version = "0.1.0"
-description = "Add your description here"
+description = "Desktop application for sales analytics and visualization"
 readme = "README.md"
 authors = [
     { name = "Samuel Macêdo Correia", email = "samucamaiscedo@gmail.com" }
