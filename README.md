@@ -92,3 +92,9 @@ The project includes two editable UML class diagrams:
 Download a diagram and open it in [draw.io](https://app.diagrams.net/)
 to inspect or edit it. These diagrams describe the intended design;
 they do not indicate implemented features.
+
+### Initial Sales Model
+
+![Initial UML class diagram showing sales and CSV import relationships](docs/diagrams/initial-sales-model.svg)
+
+The editable diagrams linked above include the remaining pages.
