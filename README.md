@@ -79,3 +79,22 @@ Changes are developed on dedicated branches and reviewed through
 pull requests before merging into `main`.
 
 Source code, documentation, and commit messages are written in English.
+
+## Architecture Diagrams
+
+The project includes two editable UML class diagrams:
+
+- [Initial class diagram](docs/diagrams/initial-class-diagram.drawio):
+  scope of the first delivery, including sales, imports, and analytics.
+- [Planned class diagram](docs/diagrams/planned-class-diagram.drawio):
+  proposed extensions for persistence, reporting, and the desktop interface.
+
+Download a diagram and open it in [draw.io](https://app.diagrams.net/)
+to inspect or edit it. These diagrams describe the intended design;
+they do not indicate implemented features.
+
+### Initial Sales Model
+
+![Initial UML class diagram showing sales and CSV import relationships](docs/diagrams/initial-sales-model.svg)
+
+The editable diagrams linked above include the remaining pages.
