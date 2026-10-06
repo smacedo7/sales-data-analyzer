@@ -1,183 +1,193 @@
 # Sales Data Analyzer
 
-A desktop application designed to turn sales records into financial
-metrics, product insights, and visual reports.
+A Python project for sales analytics and basic daily revenue forecasting,
+with a desktop application planned for a later stage.
 
-> Status: tested domain entities, financial/product analyses and a daily revenue
-> forecasting service are implemented. The desktop application remains planned.
+The current implementation provides validated sales entities, financial and
+product analyses, and a small Machine Learning forecasting service. Features
+are available through the Python API and an executable synthetic-data example.
 
-## Project Goals
+## Implemented Features
 
-- Import and validate sales records from CSV files.
-- Calculate revenue, cost of goods sold, gross profit, gross margin,
-  and average order value.
-- Rank products by units sold and revenue.
-- Analyze daily, weekly, monthly, and yearly sales.
-- Identify peak sales hours.
-- Generate charts and export PDF reports.
-- Store data locally and provide a desktop interface.
+- Company, Product, SaleItem, Sale and SalesDataset domain entities.
+- Historical prices and costs stored as `Decimal` on each sale item.
+- Company ownership, transaction ID and timestamp consistency validation.
+- Dataset filtering over half-open periods `[start, end)`.
+- Revenue, cost, gross profit, gross margin and average order value.
+- Product quantity, revenue and gross profit totals with deterministic rankings.
+- Daily revenue aggregation with explicit missing-day and timezone policies.
+- Linear regression forecasting, chronological holdout evaluation and a naive baseline.
+- Typed results, English docstrings and automated tests using `unittest`.
 
-## Planned Technology Stack
+CSV import, charts, PDF reports, persistence and a desktop interface remain
+planned. The package entry point is still a placeholder; use the example below
+to run the implemented functionality.
 
-| Technology | Purpose |
+## Getting Started
+
+Requirements: Python **3.14 or newer** and [uv](https://docs.astral.sh/uv/).
+Run these commands from the repository root:
+
+```sh
+uv sync --locked
+uv run python examples/analysis_and_forecast.py
+```
+
+The example creates fourteen days of synthetic coffee sales, with daily revenue
+from 10 to 140. It prints financial and product results, evaluates the last three
+days and forecasts the following three. No external sales data is needed.
+Dependencies are installed by `uv sync`.
+
+Expected accounting results:
+
+| Metric | Value |
+| --- | ---: |
+| Revenue | 1,050 |
+| Cost | 420 |
+| Gross profit | 630 |
+| Gross margin | 0.6 (60%) |
+| Average order value | 75 |
+
+## Tests
+
+```sh
+uv run python -m unittest discover -s tests -v
+```
+
+Tests cover domain validation, exact accounting, empty/zero/loss cases, product
+identity, ranking ties, temporal ordering, holdout isolation, baseline errors,
+missing days, timezone conversion and invalid forecast inputs.
+
+If the default uv cache is inaccessible, prefix commands with
+`UV_CACHE_DIR=/tmp/sales-uv-cache`.
+
+## Current Technology Stack
+
+| Technology | Current purpose |
 | --- | --- |
-| Python | Application development |
-| uv | Project and dependency management |
-| Pandas | Data preparation and analysis |
-| NumPy | Numerical operations |
-| Matplotlib | Charts |
-| PySide6 | Desktop interface |
-| SQLAlchemy + SQLite | Local persistence |
-| pytest | Automated tests |
-| Ruff | Linting and formatting |
+| Python >=3.14 | Domain model, analyses and forecasting |
+| uv | Environment, dependencies and lockfile |
+| Standard library `decimal` | Exact accounting amounts |
+| Standard library `unittest` | Automated tests |
+| scikit-learn | Linear regression |
+| NumPy and SciPy | Numerical dependencies of scikit-learn |
 
-Dependencies will be introduced as their features are implemented.
+Pandas, Matplotlib, PySide6 and SQLAlchemy/SQLite are candidates for future
+features. pytest and Ruff are not currently configured.
 
-## Domain Model
+## Architecture and Object Model
 
-- **Company:** the business whose sales are analyzed.
-- **Product:** a catalog entry with a name and category.
-- **Sale:** a transaction containing one or more sale items.
-- **SaleItem:** a product's quantity, unit price, and unit cost
-  at the time of a sale.
-- **SalesDataset:** a collection of sales prepared for analysis.
+```text
+src/sales_data_analyzer/
+├── domain/        # Sales entities and shared validation
+├── analysis/      # Abstract Analysis, implementations and typed results
+└── forecasting/   # Daily aggregation and scikit-learn forecasting adapter
+examples/
+└── analysis_and_forecast.py
+tests/
+docs/
+```
 
-Historical prices and costs belong to sale items so that later
-catalog changes do not alter previous transactions.
+The domain and descriptive analyses depend only on the standard library.
+The forecasting module imports scikit-learn when a forecast is requested.
+The analysis and forecasting methods serve as the current use cases.
 
-## Planned CSV Format
-
-Each row represents one sale item. Rows sharing the same `sale_id`
-belong to the same transaction.
-
-| Column | Description |
+| Component | Responsibility |
 | --- | --- |
-| sale_id | Transaction identifier |
-| date_time | Transaction date and time |
-| product_id | Product identifier |
-| product | Product name |
-| category | Product category |
-| quantity | Units sold |
-| unit_price | Selling price per unit |
-| unit_cost | Historical cost per unit |
+| `Company` | Business associated with products and sales |
+| `Product` | Company-scoped catalog identity, name and category |
+| `SaleItem` | Product reference, quantity and historical unit price/cost |
+| `Sale` | Transaction that creates and owns its items |
+| `SalesDataset` | Collection associating existing sales of one Company instance |
+| `Analysis` | Abstract `run(data: SalesDataset) -> AnalysisResult` contract |
+| `FinancialAnalysis` | Exact financial metrics |
+| `ProductAnalysis` | Product grouping and rankings |
+| `AnalysisResult` | Frozen result associated with the dataset company |
+| `RevenueForecaster` | Temporal evaluation and future revenue predictions |
+
+FinancialAnalysis and ProductAnalysis inherit from Analysis and implement the
+same method, allowing callers to use them polymorphically. AnalysisResult holds
+FinancialMetrics or ProductMetrics rows and ranking tuples. These explicit
+fields replace the UML's original arbitrary dictionary/DataFrame contract.
+Forecasting uses a separate ForecastResult because its predictive contract
+includes dates, evaluation metrics and future estimates.
+
+See [Sale](docs/sale.md) and [SalesDataset](docs/sales-dataset.md) for the
+existing entity contracts.
+
+## Accounting Rules
+
+Revenue and cost sum historical sale-item amounts using `Decimal`. Catalog
+changes do not replace historical prices or costs.
+
+- Gross profit = revenue − cost.
+- Gross margin = gross profit / revenue, expressed as a ratio.
+- Average order value = revenue / number of transactions.
+- Empty datasets have zero totals. Margin is `None` at zero revenue;
+  average order value is `None` without sales.
+- Products group by ID within the dataset company, including distinct objects
+  with the same ID. Unsold catalog products are excluded.
+- Product rows use ascending ID. Rankings use descending quantity or revenue,
+  with ascending ID as the tie breaker.
+
+## Forecasting Rules and Limitations
+
+Daily aggregation covers the earliest through latest recorded sale date.
+Naive timestamps represent local calendar times. Aware timestamps require an
+explicit common company `tzinfo`, such as `ZoneInfo("America/Sao_Paulo")`, and
+are converted before extracting dates. Passing a timezone for naive timestamps
+is rejected. The caller supplies the timezone; Company has no timezone field.
+
+Missing days raise an error by default. Select `missing_days="zero"` only when
+records are complete and absent dates mean no sales. This fills internal gaps;
+it does not infer an observation period outside the first and last sale.
+
+The model uses the calendar-day offset from the first observation as its only
+feature. At least five training days and two test days are required, with
+varying training revenue. `test_days` selects the final chronological days.
+Regression fits only earlier observations. The baseline repeats the last
+training-day revenue throughout the test period.
+
+MAE measures average absolute error; RMSE is root mean squared error. Both use
+the revenue unit. After evaluation, a separate refit uses all observations to
+predict `horizon` consecutive future days. ForecastResult exposes training
+observations, test actuals/predictions, model/baseline errors and future dates.
+Accounting stays in Decimal; ML converts revenue to finite float. Invalid
+counts, insufficient history and numeric/calendar overflow are rejected.
+
+This model learns a straight trend and does not account for seasonality,
+holidays or promotions. It can lose to the baseline and produce negative
+predictions, which are not clipped. No confidence intervals or accuracy
+guarantees are calculated. Good results on synthetic linear data demonstrate
+the mechanics, not real-world performance.
+
+Reference: [scikit-learn LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html).
+
+## UML Diagrams
+
+- [Initial class diagram](docs/diagrams/initial-class-diagram.drawio): sales and
+  analysis design; the second page reflects typed analysis results and marks
+  remaining analysis/chart work as planned.
+- [Planned class diagram](docs/diagrams/planned-class-diagram.drawio): proposed
+  persistence, reporting and desktop extensions.
+
+Open the editable files in [draw.io](https://app.diagrams.net/). The diagrams
+include future components; use the feature list above to identify implemented scope.
 
 ## Roadmap
 
-- [x] Initialize the Python package with uv.
-- [x] Create the public GitHub repository.
-- [ ] Finalize requirements and the UML model in English.
-- [x] Implement and test the domain model.
-- [ ] Implement CSV import and validation.
+- [x] Initialize the Python package and public repository.
+- [x] Implement and test the sales domain model.
 - [x] Implement financial and product analyses.
-- [x] Add a basic daily revenue forecast with temporal evaluation.
-- [ ] Implement temporal analyses and charts.
+- [x] Add basic daily revenue forecasting with temporal evaluation.
+- [x] Document the implemented analysis contract in the initial UML.
+- [ ] Implement CSV import and validation.
+- [ ] Implement descriptive temporal analyses and charts.
 - [ ] Add reporting and PDF export.
 - [ ] Add local persistence.
 - [ ] Build the desktop interface.
 
 ## Development Workflow
 
-Changes are developed on dedicated branches and reviewed through
-pull requests before merging into `main`.
-
-Source code, documentation, and commit messages are written in English.
-
-## Architecture Diagrams
-
-The project includes two editable UML class diagrams:
-
-- [Initial class diagram](docs/diagrams/initial-class-diagram.drawio):
-  scope of the first delivery, including sales, imports, and analytics.
-- [Planned class diagram](docs/diagrams/planned-class-diagram.drawio):
-  proposed extensions for persistence, reporting, and the desktop interface.
-
-Download a diagram and open it in [draw.io](https://app.diagrams.net/)
-to inspect or edit it. These diagrams describe the intended design;
-they do not indicate implemented features.
-
-### Initial Sales Model
-
-![Initial UML class diagram showing sales and CSV import relationships](docs/diagrams/initial-sales-model.svg)
-
-The editable diagrams linked above include the remaining pages.
-
-## Run the implemented features
-
-Python >=3.14 remains required. `uv sync` installs the locked environment,
-including scikit-learn 1.9.1. Tests use the standard-library unittest framework;
-pytest and Ruff in the planned stack are not configured tools yet.
-
-```sh
-uv sync
-uv run python examples/analysis_and_forecast.py
-uv run python -m unittest discover -s tests -v
-```
-
-If the default cache is inaccessible, prefix commands with
-`UV_CACHE_DIR=/tmp/sales-uv-cache`.
-
-## Analysis contracts and architecture
-
-`domain/` owns Company, Product, SaleItem, Sale and SalesDataset. A Sale owns
-its items; a dataset associates existing sales of exactly one Company instance.
-`analysis/` depends only on this domain and the standard library. `Analysis` is
-an abstract base; FinancialAnalysis and ProductAnalysis override `run` so callers
-can run either through the same polymorphic interface.
-
-Both return a frozen AnalysisResult associated with the original company.
-Financial results contain FinancialMetrics; product results contain immutable
-ProductMetrics rows and two ID rankings. This deliberately replaces UML's
-arbitrary `dict`/DataFrame with typed fields, removing Pandas from the core.
-No empty application/repository layers were introduced: `run` and `forecast`
-are the use cases; RevenueForecaster is the scikit-learn adapter.
-
-Revenue and cost sum historical item amounts using Decimal. Gross profit is
-revenue minus cost; gross margin is profit/revenue (a ratio, multiply by 100
-for percent); average order value is revenue/transaction count. Empty totals
-are zero; zero revenue gives None margin; no sales gives None ticket.
-Products group by ID within the dataset company, including distinct objects
-with the same ID. Rows use ascending ID; rankings use descending quantity or
-revenue, then ascending ID for ties. Unsold catalog products are excluded.
-
-## Forecasting policy and limitations
-
-`daily_revenue` aggregates exact amounts over the earliest through latest
-recorded calendar day, independently of sale insertion order. Naive timestamps
-are treated as local calendar times. Aware timestamps require an explicit
-company `tzinfo` (for example `ZoneInfo("America/Sao_Paulo")`), and are converted
-before extracting the date. Passing a timezone for naive timestamps is rejected.
-The Company entity currently has no timezone field; the caller supplies it.
-
-Missing days raise an error by default. Select `missing_days="zero"` only when
-records are complete and absent days mean no sales. This option fills internal
-calendar gaps; it does not infer an observation period outside the first/last sale.
-Do not use it to disguise incomplete records. Empty history cannot be forecast.
-
-RevenueForecaster uses the day offset from the first observation as its only
-feature. At least five training days and two holdout days are required; training
-revenue must vary. `test_days` selects the final chronological days. A linear
-regression fits only earlier days; a naive baseline repeats the last training
-revenue. MAE is mean absolute error; RMSE is root mean squared error, in the
-same revenue units. Neither model sees holdout targets during fitting.
-
-Only after computing evaluation metrics does the model refit all observations
-and predict `horizon` consecutive days after the last observation. ForecastResult
-separates training, actual holdout, holdout predictions, model/baseline errors
-and future predictions. Decimal is converted to finite float only for ML.
-Noninteger/bool/nonpositive counts and nonfinite numeric conversions are rejected.
-
-This small model learns a straight trend, not seasonality, holidays, promotions
-or causality. Its minimum history is a validation floor, not evidence of useful
-accuracy. It can lose to the baseline and can produce negative values; predictions
-are intentionally not clipped. No confidence intervals or accuracy guarantees
-are calculated. Synthetic linear data demonstrates mechanics, not real-world
-performance. The independent holdout-change test checks leakage; existing entity
-validation continues to reject invalid prices, quantities and company associations.
-
-The example creates fourteen days of synthetic coffee sales (10, 20, ..., 140
-revenue), prints financial/product results, evaluates the last three days and
-forecasts the next three. It needs no external dataset or private records.
-
-Official references: [LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html)
-and [installation/Python compatibility](https://scikit-learn.org/stable/install.html).
-CSV import, GUI, database, TemporalAnalysis and ChartService remain future work.
+Changes use dedicated branches and pull requests for review before merging
+into `main`. Source code, documentation, commits and PR descriptions are in English.
