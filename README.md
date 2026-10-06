@@ -3,19 +3,33 @@
 A desktop application designed to turn sales records into financial
 metrics, product insights, and visual reports.
 
-> Status: tested domain entities, financial/product analyses and a daily revenue
-> forecasting service are implemented. The desktop application remains planned.
+> Status: CSV import, validated domain entities, financial/product analyses and
+> daily revenue forecasting are implemented. The desktop application remains planned.
 
-## Project Goals
+## Level 1 delivery
 
-- Import and validate sales records from CSV files.
+Run `PYTHONPATH=src uv run python examples/import_and_analyze.py` for the CSV demo
+and `PYTHONPATH=src uv run python -m unittest discover -s tests -v` for the suite.
+The demo has 2 sales, 3 items, revenue 45.40, cost 18.20 and profit 27.20.
+See the [delivery evidence checklist](docs/level-one-delivery.md),
+[CSV contract](docs/csv-import.md) and [Portuguese video script](docs/video-script-pt.md).
+
+The authoritative implemented UML is [level-one.drawio](docs/diagrams/level-one.drawio).
+Preview its four pages: [domain](docs/diagrams/level-one-domain.svg),
+[import](docs/diagrams/level-one-import.svg), [analysis](docs/diagrams/level-one-analysis.svg),
+[forecast](docs/diagrams/level-one-forecast.svg). Older initial diagrams are design
+ history; planned diagrams describe future work and are not delivery evidence.
+
+## Implemented and Planned Scope
+
+- Implemented: import and validate sales records from CSV files.
 - Calculate revenue, cost of goods sold, gross profit, gross margin,
   and average order value.
 - Rank products by units sold and revenue.
-- Analyze daily, weekly, monthly, and yearly sales.
-- Identify peak sales hours.
-- Generate charts and export PDF reports.
-- Store data locally and provide a desktop interface.
+- Planned: descriptive daily, weekly, monthly, and yearly sales analyses.
+- Planned: identify peak sales hours.
+- Planned: generate charts and export PDF reports.
+- Planned: store data locally and provide a desktop interface.
 
 ## Planned Technology Stack
 
@@ -45,7 +59,7 @@ Dependencies will be introduced as their features are implemented.
 Historical prices and costs belong to sale items so that later
 catalog changes do not alter previous transactions.
 
-## Planned CSV Format
+## CSV Format
 
 Each row represents one sale item. Rows sharing the same `sale_id`
 belong to the same transaction.
@@ -65,9 +79,9 @@ belong to the same transaction.
 
 - [x] Initialize the Python package with uv.
 - [x] Create the public GitHub repository.
-- [ ] Finalize requirements and the UML model in English.
+- [x] Finalize requirements and the implemented UML model in English.
 - [x] Implement and test the domain model.
-- [ ] Implement CSV import and validation.
+- [x] Implement CSV import and validation.
 - [x] Implement financial and product analyses.
 - [x] Add a basic daily revenue forecast with temporal evaluation.
 - [ ] Implement temporal analyses and charts.
@@ -94,12 +108,6 @@ The project includes two editable UML class diagrams:
 Download a diagram and open it in [draw.io](https://app.diagrams.net/)
 to inspect or edit it. These diagrams describe the intended design;
 they do not indicate implemented features.
-
-### Initial Sales Model
-
-![Initial UML class diagram showing sales and CSV import relationships](docs/diagrams/initial-sales-model.svg)
-
-The editable diagrams linked above include the remaining pages.
 
 ## Run the implemented features
 
@@ -180,4 +188,4 @@ forecasts the next three. It needs no external dataset or private records.
 
 Official references: [LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html)
 and [installation/Python compatibility](https://scikit-learn.org/stable/install.html).
-CSV import, GUI, database, TemporalAnalysis and ChartService remain future work.
+GUI, database, TemporalAnalysis and ChartService remain future work.
