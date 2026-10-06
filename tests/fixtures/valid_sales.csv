@@ -1,0 +1,4 @@
+sale_id,date_time,product_id,product,category,quantity,unit_price,unit_cost
+001,2026-01-01T10:00:00,007,"Coffee, premium",Beverages,2,10.10,4.05
+002,2026-01-02T10:00:00,008,Tea,Beverages,1,5.00,2.00
+001,2026-01-01T10:00:00,007,"Coffee, premium",Beverages,2,10.10,4.05
