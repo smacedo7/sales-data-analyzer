@@ -107,7 +107,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: FR-002, FR-003, FR-004 cases incl. `" coffee shop "` duplicate, index 0 and len+1, state equality after refusal.
   - **Done when**: tests pass; commit `feat: add in-memory session with company selection`.
 
-- [ ] T010 [US1] Wire options 1–2 and the company guard in src/sales_data_analyzer/cli/menu.py
+- [X] T010 [US1] Wire options 1–2 and the company guard in src/sales_data_analyzer/cli/menu.py
   - **Files**: `src/sales_data_analyzer/cli/menu.py`, `tests/test_cli_menu.py`
   - **Acceptance**: option 1 prompts name and sector, prints `Company created and selected: <name>`; option 2 lists `n. name (sector)` and selects by number; empty list → `No companies yet.`; header updates; options 3–12 guarded (FR-004).
   - **Tests**: User Story 1 acceptance scenarios 1–6 as scripted sessions.

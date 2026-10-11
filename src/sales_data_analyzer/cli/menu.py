@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from sales_data_analyzer.application import ApplicationError, SalesSession
 from sales_data_analyzer.importing import ImportValidationError
 
-from .parsing import InputError, parse_yes_no
+from .parsing import InputError, parse_positive_int, parse_text, parse_yes_no
 
 DATA_NOTICE = "Data is kept in memory only and is lost when you exit."
 NEEDS_COMPANY = "Not done: create or select a company first."
@@ -44,8 +44,8 @@ class TerminalMenu:
     def _build_options(self) -> tuple[_Option, ...]:
         """Return the menu entries in display order (0 = Exit is handled by run)."""
         return (
-            _Option(1, "Create company", None, needs_company=False),
-            _Option(2, "Select company", None, needs_company=False),
+            _Option(1, "Create company", self._create_company, needs_company=False),
+            _Option(2, "Select company", self._select_company, needs_company=False),
             _Option(3, "Register product", None),
             _Option(4, "List products", None),
             _Option(5, "Find product", None),
@@ -128,6 +128,27 @@ class TerminalMenu:
         """Ask before discarding the session's data."""
         self._say("All data from this session will be lost.")
         return self._ask("Exit? [y/N] ", parse_yes_no)
+
+    # -- companies (US1) ---------------------------------------------------------
+
+    def _create_company(self) -> None:
+        """Ask for name and sector, then create and select the company."""
+        name = self._ask("Company name: ", parse_text)
+        sector = self._ask("Sector: ", parse_text)
+        workspace = self.session.create_company(name, sector)
+        self._say(f"Company created and selected: {workspace.company.name}")
+
+    def _select_company(self) -> None:
+        """List companies and select one by its number."""
+        workspaces = self.session.workspaces
+        if not workspaces:
+            self._say("No companies yet.")
+            return
+        for number, workspace in enumerate(workspaces, start=1):
+            self._say(f"{number}. {workspace.company.name} ({workspace.company.sector})")
+        index = self._ask("Company number: ", parse_positive_int)
+        workspace = self.session.select_company(index)
+        self._say(f"Selected: {workspace.company.name}")
 
     # -- prompt helpers ---------------------------------------------------------
 

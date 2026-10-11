@@ -29,3 +29,8 @@ class Script:
     def text(self) -> str:
         """All captured output joined by newlines."""
         return "\n".join(self.output)
+
+    @property
+    def last_header(self) -> str:
+        """The most recent menu header line."""
+        return [line for line in self.output if line.startswith("Company: ")][-1]

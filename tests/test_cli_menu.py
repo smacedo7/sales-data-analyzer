@@ -62,3 +62,34 @@ class MenuShellTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompanyMenuTests(unittest.TestCase):
+    """User Story 1 acceptance scenarios through the menu."""
+
+    def test_create_list_and_select(self) -> None:
+        script = Script(["1", "Coffee Shop", "Retail", "1", "Bakery", "Food", "2", "1", "0", "y"])
+        script.run()
+        self.assertIn("Company created and selected: Coffee Shop", script.output)
+        self.assertIn("Company: Bakery (Food)", script.output)
+        self.assertIn("2. Bakery (Food)", script.output)
+        self.assertIn("Selected: Coffee Shop", script.output)
+        self.assertTrue(script.last_header.startswith("Company: Coffee Shop (Retail)"))
+
+    def test_duplicate_company_is_refused(self) -> None:
+        script = Script(["1", "Coffee Shop", "Retail", "1", " coffee shop ", "X", "0", "y"])
+        script.run()
+        self.assertIn("Not done: a company with this name already exists.", script.output)
+        self.assertEqual(len(script.menu.session.workspaces), 1)
+
+    def test_empty_values_are_asked_again(self) -> None:
+        script = Script(["1", "  ", "Shop", "", "Retail", "0", "y"])
+        script.run()
+        self.assertEqual(script.output.count("Invalid value: a non-empty value is required."), 2)
+        self.assertIn("Company created and selected: Shop", script.output)
+
+    def test_select_with_no_companies_and_bad_number(self) -> None:
+        script = Script(["2", "1", "A", "X", "2", "5", "0", "y"])
+        script.run()
+        self.assertIn("No companies yet.", script.output)
+        self.assertIn("Not done: choose a company number from 1 to 1.", script.output)
