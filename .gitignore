@@ -29,3 +29,6 @@ Thumbs.db
 # Local datasets and generated reports
 data/
 reports/
+
+# Claude Code machine-local settings
+.claude/settings.local.json
