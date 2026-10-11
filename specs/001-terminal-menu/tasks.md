@@ -191,13 +191,13 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: FR-008–FR-010; totals 26.00/10.00 exactly; each refusal leaves state unchanged; a later catalog product with the same values does not affect stored items.
   - **Done when**: tests pass; commit `feat: record manual sales with catalog products`.
 
-- [ ] T019 [US4] Wire options 3–5 (products) in src/sales_data_analyzer/cli/menu.py
+- [X] T019 [US4] Wire options 3–5 (products) in src/sales_data_analyzer/cli/menu.py
   - **Files**: `src/sales_data_analyzer/cli/menu.py`, `src/sales_data_analyzer/cli/formatting.py`, `tests/test_cli_menu.py`
   - **Acceptance**: register prompts ID/name/category; list prints `ID  Name  Category` ordered by ID or `Catalog is empty.`; find prints details or `Product <id> not found.`
   - **Tests**: User Story 4 scenarios 1–3.
   - **Done when**: tests pass; commit `feat: manage the product catalog from the menu`.
 
-- [ ] T020 [US4] Wire option 6 (record sale) in src/sales_data_analyzer/cli/menu.py
+- [X] T020 [US4] Wire option 6 (record sale) in src/sales_data_analyzer/cli/menu.py
   - **Files**: `src/sales_data_analyzer/cli/menu.py`, `tests/test_cli_menu.py`
   - **Acceptance**: empty catalog → message (scenario 8); asks sale ID first and refuses an existing ID before items (scenario 5); item loop per contracts (blank product ID finishes); invalid item values re-asked (scenario 6); no items → nothing stored (scenario 7); success prints `Sale S-1 recorded: 2 items, total 26.00.`
   - **Tests**: User Story 4 scenarios 4–8 scripted.

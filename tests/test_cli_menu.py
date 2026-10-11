@@ -191,3 +191,115 @@ class AnalysisMenuTests(unittest.TestCase):
         self.assertIn("Invalid value: expected a date as YYYY-MM-DD.", script.output)
         self.assertIn("Not done: the end date is before the start date.", script.output)
         self.assertTrue(script.last_header.endswith("2026-01-01 to 2026-01-01 (1 sale)"))
+
+
+class CatalogAndSaleMenuTests(unittest.TestCase):
+    """User Story 4 acceptance scenarios through the menu."""
+
+    PRODUCTS = ["3", "001", "Coffee", "Beverages", "3", "002", "Tea", "Beverages"]
+
+    def test_register_list_and_find(self) -> None:
+        script = Script(
+            [
+                *NEW_COMPANY,
+                "4",
+                *self.PRODUCTS,
+                "3",
+                " 001 ",
+                "X",
+                "Y",
+                "4",
+                "5",
+                "001",
+                "5",
+                "999",
+                *EXIT,
+            ]
+        )
+        script.run()
+        self.assertIn("Catalog is empty.", script.output)
+        self.assertIn("Product registered: 001 Coffee (Beverages)", script.output)
+        self.assertIn("Not done: this product ID already exists in the catalog.", script.output)
+        self.assertIn("001  Coffee  Beverages", script.output)
+        self.assertIn("001: Coffee (Beverages)", script.output)
+        self.assertIn("Product not found.", script.output)
+
+    def test_record_sale_and_analyse(self) -> None:
+        script = Script(
+            [
+                *NEW_COMPANY,
+                *self.PRODUCTS,
+                "6",
+                "S-1",
+                "2026-01-05T10:00:00",
+                "001",
+                "2",
+                "10.50",
+                "4.00",
+                "002",
+                "1",
+                "5.00",
+                "2.00",
+                "",
+                "10",
+                *EXIT,
+            ]
+        )
+        script.run()
+        self.assertIn("Sale S-1 recorded: 2 items, total 26.00.", script.output)
+        self.assertIn("Revenue ............ 26.00", script.output)
+        self.assertIn("Cost ............... 10.00", script.output)
+
+    def test_sale_refusals_and_retries(self) -> None:
+        script = Script(
+            [
+                *NEW_COMPANY,
+                "6",
+                *self.PRODUCTS,
+                "6",
+                "S-1",
+                "2026-01-05T10:00:00",
+                "001",
+                "1",
+                "1",
+                "1",
+                "",
+                "6",
+                "S-1",
+                "6",
+                "S-2",
+                "05/01/2026",
+                "2026-01-06T10:00:00",
+                "999",
+                "001",
+                "0",
+                "2",
+                "-1",
+                "abc",
+                "3.50",
+                "1.00",
+                "",
+                "6",
+                "S-3",
+                "2026-01-07T10:00:00",
+                "",
+                *EXIT,
+            ]
+        )
+        script.run()
+        self.assertIn(
+            "Not done: the catalog is empty; register or import products first.", script.output
+        )
+        self.assertIn("Not done: this sale ID already exists in this company.", script.output)
+        self.assertIn("Product not found in the catalog; try again or leave blank.", script.output)
+        self.assertIn("Invalid value: expected a positive whole number.", script.output)
+        self.assertIn(
+            "Invalid value: expected a non-negative decimal such as 10.50 (no separators).",
+            script.output,
+        )
+        self.assertIn("Sale S-2 recorded: 1 item, total 7.00.", script.output)
+        self.assertIn(
+            "Not done: a sale needs at least one item. Nothing was stored.", script.output
+        )
+        sales = script.menu.session.current.sales.sales
+        self.assertEqual([sale.id for sale in sales], ["S-1", "S-2"])

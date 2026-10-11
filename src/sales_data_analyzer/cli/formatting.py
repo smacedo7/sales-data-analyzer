@@ -5,6 +5,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sales_data_analyzer.analysis import AnalysisResult
 from sales_data_analyzer.application.workspace import ImportSummary
+from sales_data_analyzer.domain.product import Product
 
 _CENT = Decimal("0.01")
 _TENTH = Decimal("0.1")
@@ -111,3 +112,14 @@ def format_products(
     lines.append(f"Top by quantity: {', '.join(result.quantity_ranking[:top])}")
     lines.append(f"Top by revenue:  {', '.join(result.revenue_ranking[:top])}")
     return lines
+
+
+def format_catalog(products: Sequence[Product]) -> list[str]:
+    """Return the catalog as an aligned ID/Name/Category table."""
+    if not products:
+        return ["Catalog is empty."]
+    rows = [("ID", "Name", "Category"), *((p.id, p.name, p.category) for p in products)]
+    widths = [max(len(row[i]) for row in rows) for i in range(3)]
+    return [
+        "  ".join(f"{cell:<{widths[i]}}" for i, cell in enumerate(row)).rstrip() for row in rows
+    ]

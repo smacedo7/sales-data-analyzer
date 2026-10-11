@@ -11,6 +11,7 @@ from sales_data_analyzer.application import (
     ApplicationError,
     CatalogConflictError,
     DuplicateSaleError,
+    ItemInput,
     SalesSession,
 )
 from sales_data_analyzer.importing import ImportValidationError
@@ -18,14 +19,18 @@ from sales_data_analyzer.importing import ImportValidationError
 from .formatting import (
     format_financial,
     format_id_list,
+    format_catalog,
     format_import_summary,
+    format_money,
     format_products,
     format_scope,
     plural,
 )
 from .parsing import (
     InputError,
+    parse_amount,
     parse_date,
+    parse_datetime,
     parse_path,
     parse_positive_int,
     parse_text,
@@ -66,10 +71,10 @@ class TerminalMenu:
         return (
             _Option(1, "Create company", self._create_company, needs_company=False),
             _Option(2, "Select company", self._select_company, needs_company=False),
-            _Option(3, "Register product", None),
-            _Option(4, "List products", None),
-            _Option(5, "Find product", None),
-            _Option(6, "Record sale", None),
+            _Option(3, "Register product", self._register_product),
+            _Option(4, "List products", self._list_products),
+            _Option(5, "Find product", self._find_product),
+            _Option(6, "Record sale", self._record_sale),
             _Option(7, "Import CSV", self._import_csv),
             _Option(8, "Set period", self._set_period),
             _Option(9, "Clear period", self._clear_period),
@@ -177,6 +182,65 @@ class TerminalMenu:
         index = self._ask("Company number: ", parse_positive_int)
         workspace = self.session.select_company(index)
         self._say(f"Selected: {workspace.company.name}")
+
+    # -- catalog and manual sales (US4) --------------------------------------------
+
+    def _register_product(self) -> None:
+        """Ask for ID, name and category and add the product to the catalog."""
+        workspace = self.session.require_current()
+        product_id = self._ask("Product ID: ", parse_text)
+        name = self._ask("Name: ", parse_text)
+        category = self._ask("Category: ", parse_text)
+        product = workspace.register_product(product_id, name, category)
+        self._say(f"Product registered: {product.id} {product.name} ({product.category})")
+
+    def _list_products(self) -> None:
+        """Print the catalog ordered by ID."""
+        for line in format_catalog(self.session.require_current().products):
+            self._say(line)
+
+    def _find_product(self) -> None:
+        """Look a product up by ID."""
+        workspace = self.session.require_current()
+        product = workspace.find_product(self._ask("Product ID: ", parse_text))
+        if product is None:
+            self._say("Product not found.")
+            return
+        self._say(f"{product.id}: {product.name} ({product.category})")
+
+    def _record_sale(self) -> None:
+        """Ask for a sale and its items; store it only when it has valid items."""
+        workspace = self.session.require_current()
+        if not workspace.products:
+            self._say("Not done: the catalog is empty; register or import products first.")
+            return
+        sale_id = self._ask("Sale ID: ", parse_text)
+        if workspace.has_sale(sale_id):
+            self._say("Not done: this sale ID already exists in this company.")
+            return
+        date_time = self._ask("Date and time (YYYY-MM-DDTHH:MM:SS): ", parse_datetime)
+        items: list[ItemInput] = []
+        while True:
+            product_id = self._input("Product ID (blank to finish): ").strip()
+            if not product_id:
+                break
+            product = workspace.find_product(product_id)
+            if product is None:
+                self._say("Product not found in the catalog; try again or leave blank.")
+                continue
+            quantity = self._ask("Quantity: ", parse_positive_int)
+            price = self._ask("Unit price: ", parse_amount)
+            cost = self._ask("Unit cost: ", parse_amount)
+            items.append(ItemInput(product.id, quantity, price, cost))
+            self._say(f"Item added: {product.name} x {quantity}")
+        if not items:
+            self._say("Not done: a sale needs at least one item. Nothing was stored.")
+            return
+        sale = workspace.record_sale(sale_id, date_time, items)
+        self._say(
+            f"Sale {sale.id} recorded: {plural(len(sale.items), 'item')}, "
+            f"total {format_money(sale.calculate_total())}."
+        )
 
     # -- import (US2) -------------------------------------------------------------
 
