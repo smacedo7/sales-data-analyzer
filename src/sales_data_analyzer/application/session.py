@@ -1,13 +1,9 @@
 """In-memory session state shared by every user interface."""
 
-from __future__ import annotations
+from sales_data_analyzer.domain.company import Company
 
-from typing import TYPE_CHECKING
-
-from .errors import NoCompanySelectedError
-
-if TYPE_CHECKING:
-    from .workspace import CompanyWorkspace
+from .errors import CompanyNotFoundError, DuplicateCompanyError, NoCompanySelectedError
+from .workspace import CompanyWorkspace
 
 
 class SalesSession:
@@ -33,3 +29,33 @@ class SalesSession:
         if self._current is None:
             raise NoCompanySelectedError()
         return self._current
+
+    def create_company(self, name: str, sector: str) -> CompanyWorkspace:
+        """Create, register and select a company.
+
+        Names are unique ignoring case and surrounding spaces. Raise
+        DuplicateCompanyError for a used name and the Company validation errors
+        (TypeError/ValueError) for invalid values; the session is unchanged then.
+        """
+        company = Company(name, sector)
+        key = company.name.casefold()
+        if any(w.company.name.casefold() == key for w in self._workspaces):
+            raise DuplicateCompanyError()
+        workspace = CompanyWorkspace(company)
+        self._workspaces.append(workspace)
+        self._select(workspace)
+        return workspace
+
+    def select_company(self, index: int) -> CompanyWorkspace:
+        """Select the company at a 1-based position in creation order."""
+        if isinstance(index, bool) or not isinstance(index, int):
+            raise TypeError("index must be an integer")
+        if not 1 <= index <= len(self._workspaces):
+            raise CompanyNotFoundError(len(self._workspaces))
+        workspace = self._workspaces[index - 1]
+        self._select(workspace)
+        return workspace
+
+    def _select(self, workspace: CompanyWorkspace) -> None:
+        """Make workspace current."""
+        self._current = workspace

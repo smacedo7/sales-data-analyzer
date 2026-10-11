@@ -101,7 +101,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
 
 **Independent Test**: create two companies, select the second, header shows it, exit with confirmation.
 
-- [ ] T009 [US1] Implement SalesSession company management in src/sales_data_analyzer/application/session.py
+- [X] T009 [US1] Implement SalesSession company management in src/sales_data_analyzer/application/session.py
   - **Files**: `src/sales_data_analyzer/application/session.py`, `src/sales_data_analyzer/application/workspace.py` (constructor + `company` only), `tests/test_application_session.py`
   - **Acceptance**: `create_company(name, sector)` validates through `Company`, rejects duplicate names "unique case-insensitively after trim" with `DuplicateCompanyError`, selects the new workspace; `select_company(index)` 1-based, out of range → `CompanyNotFoundError`; `require_current()` → `NoCompanySelectedError`; selection resets to all data on company change; refused calls leave state unchanged.
   - **Tests**: FR-002, FR-003, FR-004 cases incl. `" coffee shop "` duplicate, index 0 and len+1, state equality after refusal.
