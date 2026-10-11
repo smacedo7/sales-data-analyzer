@@ -47,7 +47,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: workflow green on the first push of `dev` containing it (all three OSes).
   - **Done when**: a green run is linked in the task's commit or PR notes; commit `ci: run unit tests on Linux, macOS and Windows`.
 
-- [ ] T003 Introduce Ruff lint configuration in pyproject.toml
+- [X] T003 Introduce Ruff lint configuration in pyproject.toml
   - **Files**: `pyproject.toml` (`[dependency-groups] dev = ["ruff>=…"]`, `[tool.ruff]` `target-version = "py314"`, `line-length = 100`, `[tool.ruff.lint] select = ["E4","E7","E9","F","B"]` (import sorting `I` deferred to the style PR, D4, because it would edit `domain/` and `importing/`)), `uv.lock`
   - **Acceptance**: `uv sync --locked` installs Ruff; `uv run ruff check .` passes. Findings in existing files are not fixed in this task if they are in `domain/`, `importing/`, `analysis/` or `forecasting/`; they is listed in the commit body and suppressed per-line with a reason. No `ruff format` run on existing files.
   - **Tests**: full suite unchanged and green.

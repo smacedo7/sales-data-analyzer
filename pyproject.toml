@@ -17,3 +17,37 @@ sales-data-analyzer = "sales_data_analyzer:main"
 [build-system]
 requires = ["uv_build>=0.11.27,<0.12.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+# Spec Kit scripts are vendored tooling; Markdown docs are not linted as code.
+extend-exclude = [".specify", "specs", "docs", "*.md"]
+
+[tool.ruff.lint]
+# Conservative start; import sorting (I) waits for the dedicated style PR.
+select = ["E4", "E7", "E9", "F", "B"]
+
+[tool.ruff.format]
+# Level 1 files keep their current layout until the dedicated style PR, so
+# feature diffs never mix in formatting. New files are formatted from day one.
+exclude = [
+    "examples/analysis_and_forecast.py",
+    "examples/import_and_analyze.py",
+    "main.py",
+    "src/sales_data_analyzer/analysis/__init__.py",
+    "src/sales_data_analyzer/domain/company.py",
+    "src/sales_data_analyzer/domain/sale.py",
+    "src/sales_data_analyzer/forecasting/__init__.py",
+    "src/sales_data_analyzer/importing/__init__.py",
+    "tests/test_analysis_and_forecasting.py",
+    "tests/test_importing.py",
+    "tests/test_product_and_sale_item.py",
+    "tests/test_sale.py",
+    "tests/test_sales_dataset.py",
+]
