@@ -2,18 +2,25 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
+from typing import Literal
 
 from sales_data_analyzer.analysis import AnalysisResult, FinancialAnalysis, ProductAnalysis
 from sales_data_analyzer.domain.company import Company
 from sales_data_analyzer.domain.sales_dataset import SalesDataset
+from sales_data_analyzer.forecasting import ForecastResult, RevenueForecaster, daily_revenue
 
 from .errors import (
     CompanyNotFoundError,
     DuplicateCompanyError,
+    InsufficientHistoryError,
     InvalidPeriodError,
     NoCompanySelectedError,
+    NoSalesInSelectionError,
 )
 from .workspace import CompanyWorkspace
+
+MIN_TRAINING_DAYS = 5
+"""Training days the existing RevenueForecaster requires before the test days."""
 
 
 @dataclass(frozen=True)
@@ -156,3 +163,35 @@ class SalesSession:
     def run_product_analysis(self) -> AnalysisResult:
         """Run the existing ProductAnalysis on the selected sales."""
         return ProductAnalysis().run(self.selected_sales())
+
+    def run_forecast(
+        self,
+        *,
+        horizon: int = 7,
+        test_days: int = 2,
+        missing_days: Literal["reject", "zero"] = "reject",
+        utc_offset: timedelta | None = None,
+    ) -> ForecastResult:
+        """Run the existing RevenueForecaster on the selected sales.
+
+        Data with offsets is grouped into days of ``utc_offset`` (default UTC);
+        naive data ignores it. Raise NoSalesInSelectionError for an empty
+        selection and InsufficientHistoryError when the calendar span from the
+        first to the last sale is shorter than five training days plus
+        ``test_days``. Other forecaster TypeError/ValueError (missing days,
+        constant revenue, invalid counts) propagate unchanged.
+        """
+        data = self.selected_sales()
+        if not data.sales:
+            raise NoSalesInSelectionError()
+        zone = None
+        if self.data_is_aware():
+            zone = timezone(utc_offset if utc_offset is not None else timedelta(0))
+        if not isinstance(test_days, bool) and isinstance(test_days, int) and test_days >= 2:
+            available = len(daily_revenue(data, missing_days="zero", timezone=zone))
+            required = MIN_TRAINING_DAYS + test_days
+            if available < required:
+                raise InsufficientHistoryError(available, required)
+        return RevenueForecaster().forecast(
+            data, horizon=horizon, test_days=test_days, missing_days=missing_days, timezone=zone
+        )

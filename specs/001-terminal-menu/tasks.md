@@ -213,7 +213,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
 
 **Independent Test**: 14-day fixture → errors, 7 future days, limitations; 2-day fixture → insufficient history message.
 
-- [ ] T021 [US5] Add `run_forecast` to SalesSession in src/sales_data_analyzer/application/session.py
+- [X] T021 [US5] Add `run_forecast` to SalesSession in src/sales_data_analyzer/application/session.py
   - **Files**: `src/sales_data_analyzer/application/session.py`, `tests/test_application_session.py`, `tests/fixtures/forecast_14_days.csv`
   - **Acceptance**: passes horizon/test_days/missing_days to `RevenueForecaster.forecast`; aware data requires `utc_offset` (→ `timezone(utc_offset)`), naive data ignores it; empty selection raises `NoSalesInSelectionError` (new `ApplicationError` subclass) before calling the forecaster; for insufficient history the session attaches `available_days = len(daily_revenue(data, missing_days="zero", timezone=...))` and `required_days = 5 + test_days` to an `InsufficientHistoryError` (new subclass) checked before the missing-days check; other forecaster `ValueError`s propagate unchanged; fixture: 14 consecutive days, revenue 10..140 like the existing example.
   - **Tests**: fixture result matches `examples/analysis_and_forecast.py` predictions (150, 160, 170 for horizon 3, test_days 3); empty selection, short history (with and without gaps, exact counts) and missing days; forecaster message strings pinned in tests so upstream wording changes are caught.
