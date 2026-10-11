@@ -13,7 +13,7 @@ Each entry: decision, rationale, alternatives considered.
   boundaries and changes a stable, delivered class); keep state inside the menu
   (rejected: GUI would have to duplicate it).
 
-## R2. Repeated imports and duplicate sale IDs (D2)
+## R2. Repeated imports and duplicate sale IDs (D2) — confirmed on 2026-10-11
 
 - **Decision**: refuse the whole import if any sale ID already exists in the
   company; report the count and up to five IDs.
@@ -24,7 +24,7 @@ Each entry: decision, rationale, alternatives considered.
   with the same ID); overwrite (rejected: breaks history); merge items into the
   existing sale (rejected: double counts on re-import).
 
-## R3. Catalog conflicts (D2)
+## R3. Catalog conflicts (D2) — confirmed on 2026-10-11
 
 - **Decision**: same ID + same trimmed name and category → reuse the catalog
   product object; same ID + different name or category → refuse the import.
@@ -91,7 +91,7 @@ Each entry: decision, rationale, alternatives considered.
   forecast floats with two decimals.
 - **Rationale**: readable and exact for display; stored values untouched.
 
-## R10. Menu language (D1)
+## R10. Menu language (D1) — confirmed English on 2026-10-11
 
 - **Decision**: English by default, all strings in one module so a Portuguese
   version is a small, contained change.
