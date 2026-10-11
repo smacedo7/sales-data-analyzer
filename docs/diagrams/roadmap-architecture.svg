@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="520" viewBox="0 0 1500 520" role="img" aria-labelledby="title desc">
+  <title id="title">Sales Data Analyzer project roadmap</title>
+  <desc id="desc">Progression from Level 2 terminal menu to Level 3 persistence and charts, Level 4 desktop interface, and advanced data science and machine learning portfolio experiments.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#66809a"/></marker>
+    <style>
+      text { font-family: Arial, sans-serif; fill: #183153; }
+      .title { font-size: 25px; font-weight: 700; }
+      .sub { font-size: 14px; fill: #52657a; }
+      .head { font-size: 18px; font-weight: 700; }
+      .body { font-size: 14px; }
+      .muted { font-size: 12px; fill: #52657a; }
+    </style>
+  </defs>
+  <rect width="1500" height="520" fill="#fff"/>
+  <text x="45" y="48" class="title">Sales Data Analyzer — staged architecture</text>
+  <text x="45" y="78" class="sub">Course topics enter when their foundations are covered; levels 3 and 4 also satisfy the assignment's persistence and GUI requirements.</text>
+  <g fill="none" stroke="#66809a" stroke-width="3" marker-end="url(#arrow)">
+    <path d="M370 260 L410 260"/><path d="M720 260 L760 260"/><path d="M1070 260 L1110 260"/>
+  </g>
+  <rect x="45" y="125" width="325" height="285" rx="12" fill="#e8f3ff" stroke="#3973a5" stroke-width="2"/>
+  <text x="70" y="165" class="head">Level 2 · now</text>
+  <text x="70" y="199" class="body">Terminal menu over existing core</text>
+  <text x="70" y="232" class="body">Company/product management</text>
+  <text x="70" y="260" class="body">CSV import · sales · period selection</text>
+  <text x="70" y="288" class="body">Financial/product analyses</text>
+  <text x="70" y="316" class="body">Expose existing basic linear forecast</text>
+  <text x="70" y="365" class="muted">In-memory; no charts or database</text>
+
+  <rect x="410" y="125" width="310" height="285" rx="12" fill="#fff4df" stroke="#b68b43" stroke-width="2"/>
+  <text x="435" y="165" class="head">Level 3 · after Level 2</text>
+  <text x="435" y="199" class="body">SQLite persistence (required)</text>
+  <text x="435" y="232" class="body">Temporal analysis and comparisons</text>
+  <text x="435" y="260" class="body">Charts after course units 7–8</text>
+  <text x="435" y="288" class="body">EDA / hypothesis tests after 9–11</text>
+  <text x="435" y="316" class="body">PDF reports after charts stabilize</text>
+  <text x="435" y="365" class="muted">No GUI required for this assignment level</text>
+
+  <rect x="760" y="125" width="310" height="285" rx="12" fill="#fff4df" stroke="#b68b43" stroke-width="2"/>
+  <text x="785" y="165" class="head">Level 4 · after Level 3</text>
+  <text x="785" y="199" class="body">PySide6 / Qt Widgets</text>
+  <text x="785" y="232" class="body">Dashboard, tables and charts</text>
+  <text x="785" y="260" class="body">Use the same application operations</text>
+  <text x="785" y="288" class="body">Reports and persisted data</text>
+  <text x="785" y="365" class="muted">Graphical windows, buttons and styling</text>
+
+  <rect x="1110" y="125" width="345" height="285" rx="12" fill="#f1edff" stroke="#7865a8" stroke-width="2"/>
+  <text x="1135" y="165" class="head">Portfolio · ML at the end</text>
+  <text x="1135" y="199" class="body">Basic linear forecast already exists</text>
+  <text x="1135" y="232" class="body">After units 14–22: classification,</text>
+  <text x="1135" y="260" class="body">regression trees, clustering, time series</text>
+  <text x="1135" y="288" class="body">Feature prep, validation and metrics</text>
+  <text x="1135" y="316" class="body">NLP / Spark / AWS: optional labs</text>
+  <text x="1135" y="365" class="muted">Only add when the data/use case fits</text>
+  <text x="45" y="470" class="sub">Detailed editable UML pages, including proposed class relationships: roadmap-architecture.drawio. Future pages are design proposals, not implemented code.</text>
+</svg>

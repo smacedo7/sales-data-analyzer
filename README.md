@@ -220,6 +220,13 @@ The [initial diagram](docs/diagrams/initial-class-diagram.drawio) is design hist
 The [planned diagram](docs/diagrams/planned-class-diagram.drawio) describes future
 extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 
+The Level 2 design is in [level-two.drawio](docs/diagrams/level-two.drawio)
+([preview](docs/diagrams/level-two.svg)). The staged design for persistence,
+analytics, the desktop interface and later ML experiments is in
+[roadmap-architecture.drawio](docs/diagrams/roadmap-architecture.drawio)
+([overview](docs/diagrams/roadmap-architecture.svg)). Future stages are proposals;
+their detailed requirements will be settled before implementation.
+
 ## Roadmap
 
 - [x] Initialize the Python package and public repository.
@@ -234,6 +241,7 @@ extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 - [ ] Add reporting and PDF export.
 - [ ] Add local persistence.
 - [ ] Build the desktop interface.
+- [ ] Add advanced, course-aligned ML experiments after the core application.
 
 ## Development Workflow
 
