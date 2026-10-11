@@ -40,20 +40,28 @@ company print `Not done: create or select a company first.`
 | Prompt | Format | Invalid input behaviour |
 | --- | --- | --- |
 | Menu option | integer listed | `Invalid option.` and menu again |
-| Name/sector/ID/category | non-empty text, trimmed | re-ask once per entry; empty entry at an optional step cancels the operation |
-| Date-time of sale | `YYYY-MM-DDTHH:MM:SS[.ffffff][Z|±HH:MM]` | `Invalid value: ...` re-ask |
+| Name/sector/ID/category | non-empty text, trimmed | `Invalid value: ...` and re-ask until valid (the item product ID is the only optional entry) |
+| Date-time of sale | `YYYY-MM-DDTHH:MM:SS[.ffffff][Z|±HH:MM]`, representable in UTC | `Invalid value: ...` re-ask |
 | Period dates | `YYYY-MM-DD` (up to 9999-12-30) | re-ask; end before start → `Not done: ...` |
-| Quantity | positive integer | re-ask |
+| Quantity | positive integer (at most 18 digits) | re-ask |
 | Unit price / cost | plain non-negative decimal (`10.50`, no thousands separator, no exponent) | re-ask |
 | CSV path | any path; surrounding quotes removed; on macOS/Linux `\ ` escapes undone | import error message |
 | Horizon / test days | horizon 1–365, test days ≥ 2 (blank = default 7 / 2) | re-ask |
 | UTC offset | `±HH:MM` (blank = `+00:00`) | re-ask |
 | Yes/no | `y`/`n` (blank = no) | re-ask |
 
-Sale item loop: after each item, `Add another item? [y/N]`; product ID blank
-finishes the sale.
+Sale item loop: `Product ID (blank to finish): ` is asked again after each
+item (`Item added: <name> x <quantity>`); a blank product ID finishes the sale.
+An unknown ID prints `Product not found in the catalog; try again or leave
+blank.` Success prints `Sale <id> recorded: <n> item(s), total <amount>.`
+
+For sales with offsets, setting a period prints `These sales have time zone
+offsets: dates are interpreted in UTC.` and the forecast prints `These sales
+have time zone offsets; days are grouped by a UTC offset.` before asking it.
 
 ## Result formats
+
+Layouts are illustrative: column widths adapt to the values shown.
 
 Financial:
 
@@ -81,7 +89,7 @@ Top by revenue:  007, 008
 Import refused (duplicate IDs; IDs come from the error attributes):
 
 ```text
-Import refused: 2 sale ID(s) already exist in this company: 001, 002.
+Import refused: 2 sale ID(s) already exist in this company: 001, 002. Nothing was imported.
 ```
 
 Import success:
@@ -90,6 +98,8 @@ Import success:
 Imported 2 sales, 3 items. Products: 2 new, 0 reused.
 ```
 
+Counts use the singular for one (`Imported 1 sale, 1 item.`).
+
 Forecast (abridged):
 
 ```text
@@ -97,7 +107,12 @@ Revenue forecast - Coffee Shop - all data
 Training days: 12 | Test days: 2
 Model     MAE 0.00  RMSE 0.00
 Baseline  MAE 15.00 RMSE 15.81 (repeats last training day)
-Better on test days: model
+Better on test days (lower MAE): model
+```
+
+The verdict compares MAE: `model`, `baseline`, or `tie (same MAE)`.
+
+```text
 Next 7 days:
 2026-01-15  150.00
 ...
@@ -128,6 +143,7 @@ paths).
 ## Exit
 
 ```text
-All data from this session will be lost. Exit? [y/N]
+All data from this session will be lost.
+Exit? [y/N]
 ```
 

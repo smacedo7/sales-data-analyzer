@@ -44,7 +44,9 @@ class CompanyWorkspace:
 
 ## Guarantees
 
-- Every method either completes or raises without changing state.
+- Every method either completes or raises without changing state (a refused
+  `create_company` may still advance the level 1 `Company` auto-id counter;
+  ids are never reused and have no other effect).
 - Money values are `Decimal` in and out; nothing is rounded.
 - Exceptions: `TypeError` for wrong argument types, `ApplicationError`
   subclasses for rule violations, domain `ValueError`s and
