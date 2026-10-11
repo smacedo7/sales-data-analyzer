@@ -219,7 +219,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: fixture result matches `examples/analysis_and_forecast.py` predictions (150, 160, 170 for horizon 3, test_days 3); empty selection, short history (with and without gaps, exact counts) and missing days; forecaster message strings pinned in tests so upstream wording changes are caught.
   - **Done when**: tests pass; commit `feat: run the revenue forecast on the selection`.
 
-- [ ] T022 [US5] Format forecast results and explain forecast errors in src/sales_data_analyzer/cli/formatting.py
+- [X] T022 [US5] Format forecast results and explain forecast errors in src/sales_data_analyzer/cli/formatting.py
   - **Files**: `src/sales_data_analyzer/cli/formatting.py`, `tests/test_cli_formatting.py`
   - **Acceptance**: layout and limitations text from contracts/terminal-menu.md (FR-024, FR-025); `explain_forecast_error(error) -> str` maps `InsufficientHistoryError` (using its counts) and the forecaster messages to the table in the contract (FR-026), falling back to the original message.
   - **Tests**: golden output; one test per mapped condition; "better" line for model, baseline and tie.

@@ -4,8 +4,14 @@ from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal
 
 from sales_data_analyzer.analysis import AnalysisResult
+from sales_data_analyzer.application.errors import (
+    InsufficientHistoryError,
+    NoSalesInSelectionError,
+)
+from sales_data_analyzer.application.session import MIN_TRAINING_DAYS
 from sales_data_analyzer.application.workspace import ImportSummary
 from sales_data_analyzer.domain.product import Product
+from sales_data_analyzer.forecasting import ForecastResult
 
 _CENT = Decimal("0.01")
 _TENTH = Decimal("0.1")
@@ -123,3 +129,86 @@ def format_catalog(products: Sequence[Product]) -> list[str]:
     return [
         "  ".join(f"{cell:<{widths[i]}}" for i, cell in enumerate(row)).rstrip() for row in rows
     ]
+
+
+FORECAST_LIMITATIONS = (
+    "Limitations: straight-line trend on the day number only; ignores",
+    "seasonality, holidays and promotions; can be worse than the baseline; can",
+    "predict negative values; no accuracy guarantee.",
+)
+"""Notice printed after every forecast result (FR-025)."""
+
+# Forecaster ValueError messages (level 1 wording, pinned by tests) -> plain text.
+_MISSING_DAYS = "history has missing days; explicitly select zero only for complete records"
+_FORECAST_MESSAGES = {
+    _MISSING_DAYS: "Some days between the first and last sale have no sales.",
+    "training revenue must vary to learn a trend": (
+        "Training revenue is constant, so no trend can be learned."
+    ),
+    "at least two test days are required": "Test days must be at least 2.",
+    "history or horizon exceeds numeric/calendar range": (
+        "The forecast would go past the last supported calendar day; use a shorter horizon."
+    ),
+    "revenue must be finite at the ML boundary": "Daily revenue is too large to forecast.",
+    "predictions must be finite": "The forecast produced values too large to show.",
+    "evaluation errors exceed finite floating-point range": (
+        "The forecast errors are too large to show."
+    ),
+}
+
+
+def format_forecast(result: ForecastResult, scope: str) -> list[str]:
+    """Return evaluation, future estimates and the limitations notice.
+
+    The better method is the one with the lower MAE on the test days.
+    """
+    model, baseline = result.model_errors, result.baseline_errors
+    maes = (format_float(model.mae), format_float(baseline.mae))
+    rmses = (format_float(model.rmse), format_float(baseline.rmse))
+    mae_width = max(len(v) for v in maes)
+    rmse_width = max(len(v) for v in rmses)
+    if model.mae < baseline.mae:
+        better = "model"
+    elif model.mae > baseline.mae:
+        better = "baseline"
+    else:
+        better = "tie (same MAE)"
+    lines = [
+        f"Revenue forecast - {scope}",
+        f"Training days: {len(result.training)} | Test days: {len(result.test)}",
+        f"Model     MAE {maes[0]:<{mae_width}} RMSE {rmses[0]:>{rmse_width}}",
+        f"Baseline  MAE {maes[1]:<{mae_width}} RMSE {rmses[1]:>{rmse_width}}"
+        " (repeats last training day)",
+        f"Better on test days (lower MAE): {better}",
+        f"Next {plural(len(result.future), 'day')}:",
+    ]
+    values = [format_float(p.revenue) for p in result.future]
+    width = max((len(v) for v in values), default=0)
+    lines += [
+        f"{p.day.isoformat()}  {v:>{width}}" for p, v in zip(result.future, values, strict=True)
+    ]
+    lines += FORECAST_LIMITATIONS
+    return lines
+
+
+def is_missing_days_error(error: Exception) -> bool:
+    """Return True when the forecaster refused history with days without sales."""
+    return isinstance(error, ValueError) and str(error) == _MISSING_DAYS
+
+
+def explain_forecast_error(error: Exception) -> str:
+    """Return a plain-language explanation of a forecast refusal (FR-026).
+
+    Unknown errors fall back to their own message.
+    """
+    if isinstance(error, InsufficientHistoryError):
+        test_days = error.required_days - MIN_TRAINING_DAYS
+        return (
+            f"Not enough history: {error.available_days} day(s) available, "
+            f"at least {error.required_days} needed "
+            f"({MIN_TRAINING_DAYS} training + {test_days} test). Add or import more days."
+        )
+    if isinstance(error, NoSalesInSelectionError):
+        return "No sales in the current selection."
+    message = str(error)
+    return _FORECAST_MESSAGES.get(message, message)
