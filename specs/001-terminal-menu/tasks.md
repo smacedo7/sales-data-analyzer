@@ -237,7 +237,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T024 End-to-end subprocess test in tests/test_cli_end_to_end.py
+- [X] T024 End-to-end subprocess test in tests/test_cli_end_to_end.py
   - **Files**: `tests/test_cli_end_to_end.py`
   - **Acceptance**: runs `[sys.executable, "-m", "sales_data_analyzer"]` with scripted stdin covering quickstart scenario A plus invalid inputs (SC-004), `env` with `PYTHONPATH` to `src`, `encoding="utf-8"`, timeout; asserts exit code 0, values 45.40/18.20/27.20, refused re-import, no `Traceback` in output.
   - **Tests**: itself; green in CI on all three OSes (SC-006).
