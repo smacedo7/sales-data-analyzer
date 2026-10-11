@@ -123,14 +123,14 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
 
 **Independent Test**: import `valid_sales.csv` (2 sales, 3 items, 2 new products); import again → refused, data unchanged.
 
-- [ ] T011 [US2] Implement the company catalog core in src/sales_data_analyzer/application/workspace.py
+- [X] T011 [US2] Implement the company catalog core in src/sales_data_analyzer/application/workspace.py
   - **Files**: `src/sales_data_analyzer/application/workspace.py`, `tests/test_application_workspace.py`
   - **Acceptance**: `products` tuple ordered by ID; `register_product(product_id, name, category)` builds `Product(company=workspace.company)`, IDs trimmed, duplicates → `DuplicateProductError`; `find_product` trims and returns `None` when absent.
   - **Tests**: FR-006, FR-007; leading zeros preserved (`"007"` ≠ `"7"`); same ID in two companies allowed.
   - **Done when**: tests pass; commit `feat: add per-company product catalog`.
 
-- [ ] T012 [US2] Implement `import_sales` with the merge policy in src/sales_data_analyzer/application/workspace.py
-  - **Files**: `src/sales_data_analyzer/application/workspace.py`, `tests/test_application_workspace.py`, `tests/fixtures/catalog_conflict.csv`, `tests/fixtures/aware_sales.csv`
+- [X] T012 [US2] Implement `import_sales` with the merge policy in src/sales_data_analyzer/application/workspace.py
+  - **Files**: `src/sales_data_analyzer/application/workspace.py`, `tests/test_application_workspace.py`, `tests/fixtures/aware_sales.csv` (conflicts are tested by registering a product, so no extra fixture is needed)
   - **Acceptance**: uses `CSVImporter` (injectable `DataImporter`); check order: duplicate sale IDs (all conflicting IDs collected) → catalog conflicts (same ID, different trimmed name or category, case-sensitive) → timestamp awareness vs existing sales; reuse identical catalog products by rebuilding each sale via `Sale.add_item` with the catalog object and the item's own quantity/price/cost; new products added to the catalog; candidate dataset + candidate catalog swapped only on success; returns `ImportSummary(sales_added, items_added, new_products, reused_products)`. `CSVImporter` and domain classes unchanged.
   - **Tests**: FR-011–FR-018: valid import counts; invalid file → `ImportValidationError`, state unchanged; re-import → `DuplicateSaleError` with IDs `("001","002")`, state unchanged; conflict → `CatalogConflictError(("007",))`; identical product reused (`item.product is catalog product`); aware file after naive data refused; historical prices equal file values; `sale.company is workspace.company`.
   - **Done when**: tests pass; commit `feat: import CSV into a company with duplicate and conflict policies`.

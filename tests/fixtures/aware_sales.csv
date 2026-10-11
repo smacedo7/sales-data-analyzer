@@ -1,0 +1,2 @@
+sale_id,date_time,product_id,product,category,quantity,unit_price,unit_cost
+A-1,2026-01-03T12:00:00-03:00,009,Juice,Beverages,1,7.00,3.00
