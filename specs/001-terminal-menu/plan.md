@@ -206,12 +206,15 @@ steps: checkout → `astral-sh/setup-uv` (pinned major) with Python 3.14 →
    after level 2 is merged (decision D4), so the level 1 diff evidence stays
    readable and no feature commit mixes formatting.
 
-## Open decisions (defaults applied; see research.md)
+## Decisions (see research.md)
+
+D1 and D2 were confirmed by the maintainer on 2026-10-11; D3–D5 are
+reversible defaults.
 
 | ID | Decision | Default taken |
 | --- | --- | --- |
-| D1 | Menu text language | English (repository policy); Portuguese possible via a single strings module later |
-| D2 | Repeated import / duplicate IDs / catalog conflicts | Refuse whole import (FR-013, FR-015); reuse identical products (FR-014) |
+| D1 | Menu text language | **Confirmed**: English (repository policy); strings kept in one module |
+| D2 | Repeated import / duplicate IDs / catalog conflicts | **Confirmed**: refuse whole import (FR-013, FR-015); reuse identical products (FR-014) |
 | D3 | Root `main.py` scratch script | Replace with a 3-line delegate to the entry point |
 | D4 | When to format existing files with Ruff | Separate `style:` PR after level 2 merge |
 | D5 | Duplicate company names | Refused, case-insensitive |

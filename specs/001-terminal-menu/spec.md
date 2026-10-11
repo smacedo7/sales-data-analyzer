@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-11
 
-**Status**: Draft — awaiting maintainer review
+**Status**: Approved decisions D1–D2 (2026-10-11); awaiting plan approval
 
 **Input**: User description: "Level 2: a functional terminal menu that exposes the
 operations that already exist: create and select companies, register and look up
@@ -362,4 +362,4 @@ insufficient-history explanation.
   "coffee" are different values (a conflict for the same ID).
 - Editing and deleting are deferred to the persistence level, where they matter.
 - Display language of the menu: English, consistent with the repository
-  language policy. *(Open decision D1 in plan.md.)*
+  language policy (decision D1, confirmed by the maintainer on 2026-10-11).
