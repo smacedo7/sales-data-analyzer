@@ -13,7 +13,7 @@ passed, what failed and what could not be checked.
 1. From the repository root, confirm the environment:
    `uv sync --locked` (do not change `uv.lock`; if the lock is stale, report it).
 2. Run the full suite and record the test count and result:
-   `PYTHONPATH=src uv run python -m unittest discover -s tests -v`
+   `uv run python -m unittest discover -s tests -v`
 3. Run every script in `examples/` and compare with the documented outputs:
    - `examples/import_and_analyze.py`: 2 sales, 3 items, revenue 45.40,
      cost 18.20, gross profit 27.20.
@@ -24,7 +24,7 @@ passed, what failed and what could not be checked.
 5. If Ruff is configured in `pyproject.toml`, run `uv run ruff check .` and
    `uv run ruff format --check .`.
 
-On Windows PowerShell set `$env:PYTHONPATH = "src"` instead of the prefix.
+The commands are identical on macOS, Linux and Windows PowerShell.
 
 ## Report format
 

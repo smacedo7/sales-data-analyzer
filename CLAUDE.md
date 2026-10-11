@@ -13,15 +13,15 @@ roadmap: `docs/product-vision.md`. Read the constitution before planning work.
 ## Verified commands (run from the repository root)
 
 ```sh
-uv sync --locked                                                   # install
-PYTHONPATH=src uv run python -m unittest discover -s tests -v      # tests
-PYTHONPATH=src uv run python examples/import_and_analyze.py        # CSV demo
-PYTHONPATH=src uv run python examples/analysis_and_forecast.py     # forecast demo
+uv sync --locked                                    # install
+uv run python -m unittest discover -s tests -v      # tests
+uv run python examples/import_and_analyze.py        # CSV demo
+uv run python examples/analysis_and_forecast.py     # forecast demo
 ```
 
-Windows PowerShell: run `$env:PYTHONPATH = "src"` once per shell, then the same
-`uv run ...` commands. `PYTHONPATH=src` is still required because
-`test_dependency_isolation` starts a `python -S` subprocess.
+The same commands work in macOS/Linux shells and Windows PowerShell; no
+`PYTHONPATH` is needed (uv installs the package in editable mode). The older
+`PYTHONPATH=src` prefix in level 1 documents still works.
 No linter or CI exists yet (planned in `specs/001-terminal-menu/plan.md`).
 
 ## Domain rules (do not break)

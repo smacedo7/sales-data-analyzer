@@ -77,7 +77,7 @@ portfolio piece than a broad, unfinished one.
 - Runtime: Python >= 3.14 managed by `uv`; `uv.lock` is committed and installs
   use `uv sync --locked`.
 - Tests: standard library `unittest` (run with
-  `PYTHONPATH=src uv run python -m unittest discover -s tests`).
+  `uv run python -m unittest discover -s tests`, identical on macOS and Windows).
 - Current dependency: scikit-learn (forecasting only, imported lazily).
 - Planned dependencies, each introduced only by the level that needs it:
   Matplotlib (charts), a PDF library (reports), SQLite via the standard library
@@ -121,4 +121,4 @@ it.
   compliance before a pull request. Justified exceptions are recorded in the
   plan's Complexity Tracking table.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
+**Version**: 1.0.1 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
