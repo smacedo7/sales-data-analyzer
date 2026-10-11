@@ -1,0 +1,151 @@
+"""Numbered terminal menu over the application session.
+
+Input and output are injected (`input_fn`, `output_fn`) so scripted sessions can
+drive the menu in tests exactly as a person would at the keyboard.
+"""
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+from sales_data_analyzer.application import ApplicationError, SalesSession
+from sales_data_analyzer.importing import ImportValidationError
+
+from .parsing import InputError, parse_yes_no
+
+DATA_NOTICE = "Data is kept in memory only and is lost when you exit."
+NEEDS_COMPANY = "Not done: create or select a company first."
+
+
+@dataclass(frozen=True)
+class _Option:
+    """One menu entry; handlers needing a company are guarded by the loop."""
+
+    number: int
+    label: str
+    handler: Callable[[], None] | None
+    needs_company: bool = True
+
+
+class TerminalMenu:
+    """Interactive loop that maps menu choices to application use cases."""
+
+    def __init__(
+        self,
+        session: SalesSession | None = None,
+        input_fn: Callable[[str], str] = input,
+        output_fn: Callable[[str], None] = print,
+    ) -> None:
+        """Create a menu over session (a new one by default) with injectable I/O."""
+        self.session = session if session is not None else SalesSession()
+        self._input = input_fn
+        self._output = output_fn
+        self._options = self._build_options()
+
+    def _build_options(self) -> tuple[_Option, ...]:
+        """Return the menu entries in display order (0 = Exit is handled by run)."""
+        return (
+            _Option(1, "Create company", None, needs_company=False),
+            _Option(2, "Select company", None, needs_company=False),
+            _Option(3, "Register product", None),
+            _Option(4, "List products", None),
+            _Option(5, "Find product", None),
+            _Option(6, "Record sale", None),
+            _Option(7, "Import CSV", None),
+            _Option(8, "Set period", None),
+            _Option(9, "Clear period", None),
+            _Option(10, "Financial analysis", None),
+            _Option(11, "Product analysis", None),
+            _Option(12, "Revenue forecast", None),
+        )
+
+    # -- loop -----------------------------------------------------------------
+
+    def run(self) -> int:
+        """Run until the user confirms exit or input ends; return exit status 0."""
+        self._say("Sales Data Analyzer - level 2 (terminal)")
+        self._say(DATA_NOTICE)
+        try:
+            while True:
+                self._show_menu()
+                choice = self._input("Choose an option: ").strip()
+                if choice == "0":
+                    if self._confirm_exit():
+                        return 0
+                    continue
+                option = self._find_option(choice)
+                if option is None:
+                    self._say("Invalid option.")
+                    continue
+                self._dispatch(option)
+        except EOFError, KeyboardInterrupt:
+            self._say("")
+            self._say(DATA_NOTICE.replace("is lost when you exit", "was discarded"))
+            return 0
+
+    def _show_menu(self) -> None:
+        """Print the header with the current company and the numbered options."""
+        self._say("")
+        self._say(self._header())
+        for option in self._options:
+            self._say(f"{option.number:>2}. {option.label}")
+        self._say(" 0. Exit")
+
+    def _header(self) -> str:
+        """Describe the selected company for the menu header."""
+        workspace = self.session.current
+        if workspace is None:
+            return "Company: none"
+        company = workspace.company
+        return f"Company: {company.name} ({company.sector})"
+
+    def _find_option(self, choice: str) -> _Option | None:
+        """Return the option for a typed number, or None when it is not listed."""
+        for option in self._options:
+            if choice == str(option.number):
+                return option
+        return None
+
+    def _dispatch(self, option: _Option) -> None:
+        """Run one handler, turning every error into a message for the user."""
+        if option.needs_company and self.session.current is None:
+            self._say(NEEDS_COMPANY)
+            return
+        if option.handler is None:
+            self._say("Not done: this option is not available yet.")
+            return
+        try:
+            option.handler()
+        except EOFError, KeyboardInterrupt:
+            raise
+        except ImportValidationError as error:
+            self._say(_describe_import_error(error))
+        except (ApplicationError, ValueError, TypeError) as error:
+            self._say(f"Not done: {error}.")
+        except Exception as error:  # the menu must survive any failure
+            self._say(f"Unexpected error ({type(error).__name__}). Your data is unchanged.")
+
+    def _confirm_exit(self) -> bool:
+        """Ask before discarding the session's data."""
+        self._say("All data from this session will be lost.")
+        return self._ask("Exit? [y/N] ", parse_yes_no)
+
+    # -- prompt helpers ---------------------------------------------------------
+
+    def _say(self, line: str) -> None:
+        """Write one line of output."""
+        self._output(line)
+
+    def _ask[T](self, prompt: str, parser: Callable[[str], T]) -> T:
+        """Prompt until parser accepts the answer; InputError explains the format."""
+        while True:
+            try:
+                return parser(self._input(prompt))
+            except InputError as error:
+                self._say(f"Invalid value: {error}.")
+
+
+def _describe_import_error(error: ImportValidationError) -> str:
+    """Return the import diagnostic without raw values; line 0 means the file itself."""
+    if error.line == 0:
+        return f"Import refused: {error.reason}."
+    return f"Import refused at line {error.line}, field {error.field}: {error.reason}."

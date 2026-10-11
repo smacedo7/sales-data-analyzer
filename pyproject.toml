@@ -39,7 +39,6 @@ select = ["E4", "E7", "E9", "F", "B"]
 exclude = [
     "examples/analysis_and_forecast.py",
     "examples/import_and_analyze.py",
-    "main.py",
     "src/sales_data_analyzer/analysis/__init__.py",
     "src/sales_data_analyzer/domain/company.py",
     "src/sales_data_analyzer/domain/sale.py",

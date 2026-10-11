@@ -85,7 +85,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: rounding half-up boundary (`0.005` → `0.01`), large values, negatives, `None`.
   - **Done when**: tests pass; commit `feat: add result formatting primitives`.
 
-- [ ] T008 Implement the menu shell and entry points in src/sales_data_analyzer/cli/menu.py
+- [X] T008 Implement the menu shell and entry points in src/sales_data_analyzer/cli/menu.py
   - **Files**: `src/sales_data_analyzer/cli/menu.py`, `src/sales_data_analyzer/cli/__init__.py` (`run() -> int`), `src/sales_data_analyzer/__init__.py` (`main()` calls `cli.run()`), `src/sales_data_analyzer/__main__.py`, `main.py` (delegate, decision D3), `tests/test_cli_menu.py`
   - **Acceptance**: `TerminalMenu(session, input_fn=input, output_fn=print)`; banner and data-loss notice at start (FR-001); header line per contracts/terminal-menu.md; numbered options 0–12 with handlers not yet implemented printing `Not done: create or select a company first.` when no company; invalid option message (FR-029); exit asks confirmation (FR-005); `EOFError`/`KeyboardInterrupt` print the notice and return 0; any other exception in a handler prints `Unexpected error (<ExceptionType>). Your data is unchanged.` (type name only, no message) and the loop continues. stdout/stdin reconfigured to UTF-8 when supported.
   - **Tests**: scripted sessions: start → exit `y`; exit `n` keeps running; invalid option; EOF; handler raising `RuntimeError("secret/path")` keeps the loop alive and the message text is not printed.
