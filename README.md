@@ -31,8 +31,8 @@ Run these commands from the repository root:
 
 ```sh
 uv sync --locked
-PYTHONPATH=src uv run python examples/import_and_analyze.py
-PYTHONPATH=src uv run python examples/analysis_and_forecast.py
+uv run python examples/import_and_analyze.py
+uv run python examples/analysis_and_forecast.py
 ```
 
 The CSV example imports the included synthetic fixture and prints 2 sales,
@@ -56,7 +56,7 @@ Expected accounting results:
 ## Tests
 
 ```sh
-PYTHONPATH=src uv run python -m unittest discover -s tests -v
+uv run python -m unittest discover -s tests -v
 ```
 
 Tests cover CSV validation, atomic import, ID preservation, domain validation, exact accounting, empty/zero/loss cases, product
