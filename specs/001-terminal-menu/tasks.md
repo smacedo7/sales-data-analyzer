@@ -249,7 +249,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: commands in README executed verbatim by `/project-verification`.
   - **Done when**: commit `docs: document the level 2 terminal menu`.
 
-- [ ] T026 [P] Model the application and terminal layers in docs/diagrams/level-two.drawio
+- [X] T026 [P] Model the application and terminal layers in docs/diagrams/level-two.drawio
   - **Files**: `docs/diagrams/level-two.drawio`, `docs/diagrams/level-two.svg`
   - **Acceptance**: classes `SalesSession`, `CompanyWorkspace`, `Selection`, `ItemInput`, `ImportSummary`, `TerminalMenu`, error hierarchy; associations to existing domain/analysis/forecast classes; dependency arrows only downward; matches public methods in code.
   - **Tests**: `/pre-pr-review` UML step finds no mismatch.
