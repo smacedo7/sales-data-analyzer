@@ -73,7 +73,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: subclassing, attributes, messages without IDs, `require_current()` on an empty session.
   - **Done when**: tests pass; commit `feat: add application error hierarchy`.
 
-- [ ] T006 [P] Implement typed text parsing in src/sales_data_analyzer/cli/parsing.py
+- [X] T006 [P] Implement typed text parsing in src/sales_data_analyzer/cli/parsing.py
   - **Files**: `src/sales_data_analyzer/cli/__init__.py`, `src/sales_data_analyzer/cli/parsing.py`, `tests/test_cli_parsing.py`
   - **Acceptance**: `InputError(ValueError)`; `parse_text`, `parse_positive_int`, `parse_amount` (plain non-negative decimal → `Decimal`, same grammar as `SalesValidator`), `parse_date` (`YYYY-MM-DD`, rejecting 9999-12-31 because the period end needs the following day), `parse_datetime` (same grammar as CSV import), `parse_utc_offset` (`±HH:MM` → `timedelta`, hours ≤ 23, minutes ≤ 59), `parse_yes_no` (blank = no), `parse_path` (strip whitespace and one pair of matching quotes; on POSIX also undo backslash-escaped spaces `My\ File.csv` produced by macOS Terminal drag-and-drop). No float conversion.
   - **Tests**: table-driven valid/invalid cases; parity test: for a list of timestamp and amount samples, `parse_datetime`/`parse_amount` accept exactly what `SalesValidator.validate` accepts.
