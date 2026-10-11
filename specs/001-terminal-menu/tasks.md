@@ -255,7 +255,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: `/pre-pr-review` UML step finds no mismatch.
   - **Done when**: commit `docs: add level 2 UML for application and terminal layers`.
 
-- [ ] T027 Final verification and pull request preparation
+- [X] T027 Final verification and pull request preparation
   - **Files**: `specs/001-terminal-menu/tasks.md` (all `[X]`), PR description draft
   - **Acceptance**: `/project-verification`, `/domain-review`, `/pre-pr-review` report no blocking item; quickstart scenarios A–C run manually on macOS (and Windows when available); `/speckit-analyze` and `/speckit-converge` report no gaps.
   - **Tests**: full suite + CI green.
