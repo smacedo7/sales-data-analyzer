@@ -79,7 +79,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: table-driven valid/invalid cases; parity test: for a list of timestamp and amount samples, `parse_datetime`/`parse_amount` accept exactly what `SalesValidator.validate` accepts.
   - **Done when**: tests pass; commit `feat: add terminal input parsing`.
 
-- [ ] T007 [P] Implement display primitives in src/sales_data_analyzer/cli/formatting.py
+- [X] T007 [P] Implement display primitives in src/sales_data_analyzer/cli/formatting.py
   - **Files**: `src/sales_data_analyzer/cli/formatting.py`, `tests/test_cli_formatting.py`
   - **Acceptance**: `format_money(Decimal) -> str` (`ROUND_HALF_UP` to 0.01, thousands separator: `1,050.00`, negative as `-3.00`); `format_percent(Decimal | None)` (ratio → one decimal `59.9%`, `None` → `n/a`); `format_optional_money` (`None` → `n/a`); `format_float(float)` two decimals. Input values are never mutated.
   - **Tests**: rounding half-up boundary (`0.005` → `0.01`), large values, negatives, `None`.
