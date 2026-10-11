@@ -1,9 +1,53 @@
 """In-memory session state shared by every user interface."""
 
-from sales_data_analyzer.domain.company import Company
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta, timezone
 
-from .errors import CompanyNotFoundError, DuplicateCompanyError, NoCompanySelectedError
+from sales_data_analyzer.analysis import AnalysisResult, FinancialAnalysis, ProductAnalysis
+from sales_data_analyzer.domain.company import Company
+from sales_data_analyzer.domain.sales_dataset import SalesDataset
+
+from .errors import (
+    CompanyNotFoundError,
+    DuplicateCompanyError,
+    InvalidPeriodError,
+    NoCompanySelectedError,
+)
 from .workspace import CompanyWorkspace
+
+
+@dataclass(frozen=True)
+class Selection:
+    """All sales (no dates) or the whole days from start to end, both included."""
+
+    start: date | None = None
+    end: date | None = None
+
+    def __post_init__(self) -> None:
+        """Require both dates or neither, in order, before the last calendar day."""
+        if (self.start is None) != (self.end is None):
+            raise InvalidPeriodError("a period needs both a start and an end date")
+        if self.start is None or self.end is None:
+            return
+        if not isinstance(self.start, date) or not isinstance(self.end, date):
+            raise TypeError("start and end must be dates")
+        if isinstance(self.start, datetime) or isinstance(self.end, datetime):
+            raise TypeError("start and end must be dates without time")
+        if self.start > self.end:
+            raise InvalidPeriodError("the end date is before the start date")
+        if self.end >= date.max:
+            raise InvalidPeriodError("the end date must be on or before 9999-12-30")
+
+    @property
+    def is_all(self) -> bool:
+        """Return True when every sale is selected."""
+        return self.start is None
+
+    def describe(self) -> str:
+        """Return a short human description such as 'all data'."""
+        if self.start is None or self.end is None:
+            return "all data"
+        return f"{self.start.isoformat()} to {self.end.isoformat()}"
 
 
 class SalesSession:
@@ -13,6 +57,7 @@ class SalesSession:
         """Start an empty session with no selected company."""
         self._workspaces: list[CompanyWorkspace] = []
         self._current: CompanyWorkspace | None = None
+        self._selection = Selection()
 
     @property
     def workspaces(self) -> tuple[CompanyWorkspace, ...]:
@@ -23,6 +68,11 @@ class SalesSession:
     def current(self) -> CompanyWorkspace | None:
         """Return the selected workspace, or None before any selection."""
         return self._current
+
+    @property
+    def selection(self) -> Selection:
+        """Return the active selection (reset to all data when the company changes)."""
+        return self._selection
 
     def require_current(self) -> CompanyWorkspace:
         """Return the selected workspace or raise NoCompanySelectedError."""
@@ -57,5 +107,52 @@ class SalesSession:
         return workspace
 
     def _select(self, workspace: CompanyWorkspace) -> None:
-        """Make workspace current."""
+        """Make workspace current and select all of its data."""
         self._current = workspace
+        self._selection = Selection()
+
+    # -- selection ----------------------------------------------------------------
+
+    def set_period(self, start: date, end: date) -> None:
+        """Select the whole days from start to end, both included.
+
+        Raise InvalidPeriodError when end is before start or is the last
+        representable day, keeping the previous selection.
+        """
+        self.require_current()
+        self._selection = Selection(start, end)
+
+    def clear_period(self) -> None:
+        """Select all data of the current company again."""
+        self.require_current()
+        self._selection = Selection()
+
+    def data_is_aware(self) -> bool:
+        """Return True when the current company's sales carry UTC offsets."""
+        sales = self.require_current().sales.sales
+        return bool(sales) and sales[0].date_time.utcoffset() is not None
+
+    def selected_sales(self) -> SalesDataset:
+        """Return the current company's sales inside the active selection.
+
+        Period days are local calendar days for naive data and UTC days for
+        data with offsets (imports normalize offsets to UTC).
+        """
+        workspace = self.require_current()
+        selection = self._selection
+        if selection.start is None or selection.end is None:
+            return workspace.sales
+        zone = timezone.utc if self.data_is_aware() else None
+        start = datetime.combine(selection.start, time(), zone)
+        end = datetime.combine(selection.end + timedelta(days=1), time(), zone)
+        return workspace.sales.filter_period(start, end)
+
+    # -- analyses -------------------------------------------------------------------
+
+    def run_financial_analysis(self) -> AnalysisResult:
+        """Run the existing FinancialAnalysis on the selected sales."""
+        return FinancialAnalysis().run(self.selected_sales())
+
+    def run_product_analysis(self) -> AnalysisResult:
+        """Run the existing ProductAnalysis on the selected sales."""
+        return ProductAnalysis().run(self.selected_sales())

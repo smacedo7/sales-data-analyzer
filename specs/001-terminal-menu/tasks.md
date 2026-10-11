@@ -151,13 +151,13 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
 
 **Independent Test**: after importing the fixture, revenue 45.40 / cost 18.20 / profit 27.20; period 2026-01-02..2026-01-02 → revenue 5.00.
 
-- [ ] T014 [US3] Implement Selection and period filtering in src/sales_data_analyzer/application/session.py
+- [X] T014 [US3] Implement Selection and period filtering in src/sales_data_analyzer/application/session.py
   - **Files**: `src/sales_data_analyzer/application/session.py`, `tests/test_application_session.py`
   - **Acceptance**: `Selection(start: date | None, end: date | None)` "both set or both None; start <= end"; `set_period` start > end → `InvalidPeriodError` keeping previous selection; `selected_sales()` uses `filter_period(start 00:00, end + 1 day 00:00)`, with `tzinfo=timezone.utc` when data is aware; `data_is_aware()`.
   - **Tests**: inclusive end day; empty result; naive and aware datasets; refusal keeps previous selection.
   - **Done when**: tests pass; commit `feat: select all data or an inclusive date period`.
 
-- [ ] T015 [US3] Add analysis use cases to SalesSession in src/sales_data_analyzer/application/session.py
+- [X] T015 [US3] Add analysis use cases to SalesSession in src/sales_data_analyzer/application/session.py
   - **Files**: `src/sales_data_analyzer/application/session.py`, `tests/test_application_session.py`
   - **Acceptance**: `run_financial_analysis()` / `run_product_analysis()` call existing `FinancialAnalysis`/`ProductAnalysis` on `selected_sales()`; require a company.
   - **Tests**: values equal direct analysis calls; empty selection gives zero totals and `None` ratios.

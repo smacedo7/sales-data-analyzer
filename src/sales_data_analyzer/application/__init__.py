@@ -19,7 +19,7 @@ from .errors import (
     TimestampAwarenessError,
     UnknownProductError,
 )
-from .session import SalesSession
+from .session import SalesSession, Selection
 
 __all__ = [
     "ApplicationError",
@@ -34,6 +34,7 @@ __all__ = [
     "NoCompanySelectedError",
     "NoSalesInSelectionError",
     "SalesSession",
+    "Selection",
     "TimestampAwarenessError",
     "UnknownProductError",
 ]
