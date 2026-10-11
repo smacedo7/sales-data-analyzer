@@ -163,13 +163,13 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: values equal direct analysis calls; empty selection gives zero totals and `None` ratios.
   - **Done when**: tests pass; commit `feat: run financial and product analyses on the selection`.
 
-- [ ] T016 [US3] Format financial and product results in src/sales_data_analyzer/cli/formatting.py
+- [X] T016 [US3] Format financial and product results in src/sales_data_analyzer/cli/formatting.py
   - **Files**: `src/sales_data_analyzer/cli/formatting.py`, `tests/test_cli_formatting.py`
   - **Acceptance**: layouts from contracts/terminal-menu.md; product table joins catalog names by ID (unknown name → `?`); top five by quantity and revenue (existing ranking order); header with company, selection description and sale count.
   - **Tests**: golden strings for the fixture; empty dataset (`n/a` ratios, `No products sold.`).
   - **Done when**: tests pass; commit `feat: format analysis results for the terminal`.
 
-- [ ] T017 [US3] Wire options 8–11 in src/sales_data_analyzer/cli/menu.py
+- [X] T017 [US3] Wire options 8–11 in src/sales_data_analyzer/cli/menu.py
   - **Files**: `src/sales_data_analyzer/cli/menu.py`, `tests/test_cli_menu.py`
   - **Acceptance**: option 8 asks start/end dates (re-ask invalid format, `Not done` for end < start); option 9 clears; header shows `Selection: 2026-01-02 to 2026-01-02 (1 sale)`; for aware data the period prompt says dates are UTC; options 10/11 print formatted results.
   - **Tests**: User Story 3 scenarios 1–6 scripted.

@@ -73,7 +73,7 @@ class CompanyMenuTests(unittest.TestCase):
         script = Script(["1", "Coffee Shop", "Retail", "1", "Bakery", "Food", "2", "1", "0", "y"])
         script.run()
         self.assertIn("Company created and selected: Coffee Shop", script.output)
-        self.assertIn("Company: Bakery (Food)", script.output)
+        self.assertIn("Company: Bakery (Food) | Selection: all data (0 sales)", script.output)
         self.assertIn("2. Bakery (Food)", script.output)
         self.assertIn("Selected: Coffee Shop", script.output)
         self.assertTrue(script.last_header.startswith("Company: Coffee Shop (Retail)"))
@@ -141,3 +141,53 @@ class ImportMenuTests(unittest.TestCase):
             "catalog: 007. Nothing was imported.",
             script.output,
         )
+
+
+class AnalysisMenuTests(unittest.TestCase):
+    """User Story 3 acceptance scenarios through the menu."""
+
+    def setUp(self) -> None:
+        self.base = [*NEW_COMPANY, "7", VALID]
+
+    def test_analyses_on_all_data(self) -> None:
+        script = Script([*self.base, "10", "11", *EXIT])
+        script.run()
+        self.assertIn("Financial analysis - Coffee Shop - all data (2 sales)", script.output)
+        self.assertIn("Revenue ............ 45.40", script.output)
+        self.assertIn("Gross margin ....... 59.9%", script.output)
+        self.assertIn("007  Coffee, premium    4    40.40         24.20", script.output)
+
+    def test_period_selection_and_clear(self) -> None:
+        script = Script([*self.base, "8", "2026-01-02", "2026-01-02", "10", "9", "10", *EXIT])
+        script.run()
+        self.assertIn("Selection: 2026-01-02 to 2026-01-02 (1 sale)", script.output)
+        self.assertIn("Revenue ............  5.00", script.output)
+        self.assertIn("Selection: all data", script.output)
+        self.assertTrue(script.last_header.endswith("Selection: all data (2 sales)"))
+
+    def test_empty_period_shows_na(self) -> None:
+        script = Script([*self.base, "8", "2020-01-01", "2020-01-31", "10", *EXIT])
+        script.run()
+        self.assertIn("Gross margin .......  n/a", script.output)
+
+    def test_invalid_dates(self) -> None:
+        script = Script(
+            [
+                *self.base,
+                "8",
+                "02/01/2026",
+                "2026-01-02",
+                "2026-01-01",
+                "8",
+                "2026-01-01",
+                "2026-01-01",
+                "8",
+                "2026-01-03",
+                "2026-01-02",
+                *EXIT,
+            ]
+        )
+        script.run()
+        self.assertIn("Invalid value: expected a date as YYYY-MM-DD.", script.output)
+        self.assertIn("Not done: the end date is before the start date.", script.output)
+        self.assertTrue(script.last_header.endswith("2026-01-01 to 2026-01-01 (1 sale)"))

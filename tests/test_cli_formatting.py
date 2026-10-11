@@ -1,13 +1,18 @@
 """Display formatting rounds for reading only and never changes values."""
 
 from decimal import Decimal
+from pathlib import Path
 import unittest
 
 from sales_data_analyzer.cli.formatting import (
+    format_financial,
     format_float,
     format_money,
     format_optional_money,
     format_percent,
+    format_products,
+    format_scope,
+    plural,
 )
 
 
@@ -62,3 +67,59 @@ class ImportFormattingTests(unittest.TestCase):
             format_import_summary(ImportSummary(2, 3, 2, 0)),
             "Imported 2 sales, 3 items. Products: 2 new, 0 reused.",
         )
+
+
+class AnalysisFormattingTests(unittest.TestCase):
+    """Golden output for the level 1 fixture and an empty selection."""
+
+    def setUp(self) -> None:
+        from sales_data_analyzer.application import SalesSession
+
+        self.session = SalesSession()
+        workspace = self.session.create_company("Coffee Shop", "Retail")
+        workspace.import_sales(Path(__file__).parent / "fixtures" / "valid_sales.csv")
+        self.names = {p.id: p.name for p in workspace.products}
+
+    def test_financial(self) -> None:
+        lines = format_financial(self.session.run_financial_analysis(), "Coffee Shop - all data")
+        self.assertEqual(
+            lines,
+            [
+                "Financial analysis - Coffee Shop - all data",
+                "Revenue ............ 45.40",
+                "Cost ............... 18.20",
+                "Gross profit ....... 27.20",
+                "Gross margin ....... 59.9%",
+                "Average order ...... 22.70",
+                "Sales ..............     2",
+            ],
+        )
+
+    def test_products(self) -> None:
+        lines = format_products(self.session.run_product_analysis(), "scope", self.names)
+        self.assertEqual(
+            lines,
+            [
+                "Product analysis - scope",
+                "ID   Name             Qty  Revenue  Gross profit",
+                "007  Coffee, premium    4    40.40         24.20",
+                "008  Tea                1     5.00          3.00",
+                "Top by quantity: 007, 008",
+                "Top by revenue:  007, 008",
+            ],
+        )
+        self.assertIn("?", format_products(self.session.run_product_analysis(), "s", {})[2])
+
+    def test_empty_selection(self) -> None:
+        from datetime import date
+
+        self.session.set_period(date(2020, 1, 1), date(2020, 1, 1))
+        financial = format_financial(self.session.run_financial_analysis(), "s")
+        self.assertIn("Gross margin .......  n/a", financial)
+        self.assertIn("Average order ......  n/a", financial)
+        products = format_products(self.session.run_product_analysis(), "s", self.names)
+        self.assertEqual(products[-1], "No products sold.")
+
+    def test_scope_and_plural(self) -> None:
+        self.assertEqual(format_scope("Shop", "all data", 1), "Shop - all data (1 sale)")
+        self.assertEqual(plural(2, "sale"), "2 sales")

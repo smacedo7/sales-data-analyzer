@@ -15,8 +15,22 @@ from sales_data_analyzer.application import (
 )
 from sales_data_analyzer.importing import ImportValidationError
 
-from .formatting import format_id_list, format_import_summary
-from .parsing import InputError, parse_path, parse_positive_int, parse_text, parse_yes_no
+from .formatting import (
+    format_financial,
+    format_id_list,
+    format_import_summary,
+    format_products,
+    format_scope,
+    plural,
+)
+from .parsing import (
+    InputError,
+    parse_date,
+    parse_path,
+    parse_positive_int,
+    parse_text,
+    parse_yes_no,
+)
 
 DATA_NOTICE = "Data is kept in memory only and is lost when you exit."
 NEEDS_COMPANY = "Not done: create or select a company first."
@@ -57,10 +71,10 @@ class TerminalMenu:
             _Option(5, "Find product", None),
             _Option(6, "Record sale", None),
             _Option(7, "Import CSV", self._import_csv),
-            _Option(8, "Set period", None),
-            _Option(9, "Clear period", None),
-            _Option(10, "Financial analysis", None),
-            _Option(11, "Product analysis", None),
+            _Option(8, "Set period", self._set_period),
+            _Option(9, "Clear period", self._clear_period),
+            _Option(10, "Financial analysis", self._financial_analysis),
+            _Option(11, "Product analysis", self._product_analysis),
             _Option(12, "Revenue forecast", None),
         )
 
@@ -102,7 +116,15 @@ class TerminalMenu:
         if workspace is None:
             return "Company: none"
         company = workspace.company
-        return f"Company: {company.name} ({company.sector})"
+        try:
+            count = len(self.session.selected_sales().sales)
+        except ValueError:  # defensive: the header must never stop the menu
+            return f"Company: {company.name} ({company.sector})"
+        selection = self.session.selection.describe()
+        return (
+            f"Company: {company.name} ({company.sector}) | "
+            f"Selection: {selection} ({plural(count, 'sale')})"
+        )
 
     def _find_option(self, choice: str) -> _Option | None:
         """Return the option for a typed number, or None when it is not listed."""
@@ -178,6 +200,43 @@ class TerminalMenu:
             )
             return
         self._say(format_import_summary(summary))
+
+    # -- selection and analyses (US3) ---------------------------------------------
+
+    def _set_period(self) -> None:
+        """Ask for an inclusive date range and make it the active selection."""
+        self.session.require_current()
+        if self.session.data_is_aware():
+            self._say("These sales have time zone offsets: dates are interpreted in UTC.")
+        start = self._ask("Start date (YYYY-MM-DD): ", parse_date)
+        end = self._ask("End date (YYYY-MM-DD, included): ", parse_date)
+        self.session.set_period(start, end)
+        count = len(self.session.selected_sales().sales)
+        self._say(f"Selection: {self.session.selection.describe()} ({plural(count, 'sale')})")
+
+    def _clear_period(self) -> None:
+        """Select all data again."""
+        self.session.clear_period()
+        self._say("Selection: all data")
+
+    def _scope(self) -> str:
+        """Describe the current company and selection for result headers."""
+        workspace = self.session.require_current()
+        count = len(self.session.selected_sales().sales)
+        return format_scope(workspace.company.name, self.session.selection.describe(), count)
+
+    def _financial_analysis(self) -> None:
+        """Print the financial analysis of the selection."""
+        result = self.session.run_financial_analysis()
+        for line in format_financial(result, self._scope()):
+            self._say(line)
+
+    def _product_analysis(self) -> None:
+        """Print the product analysis of the selection with catalog names."""
+        result = self.session.run_product_analysis()
+        names = {p.id: p.name for p in self.session.require_current().products}
+        for line in format_products(result, self._scope(), names):
+            self._say(line)
 
     # -- prompt helpers ---------------------------------------------------------
 
