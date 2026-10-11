@@ -41,7 +41,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: existing 42 tests pass without `PYTHONPATH=src`; still pass with it.
   - **Done when**: both commands give `Ran 42 tests ... OK`; constitution reads v1.0.1 with the prefix-free command; commit `test: run dependency isolation check without external PYTHONPATH`.
 
-- [ ] T002 Add GitHub Actions test workflow in .github/workflows/tests.yml
+- [X] T002 Add GitHub Actions test workflow in .github/workflows/tests.yml
   - **Files**: `.github/workflows/tests.yml`
   - **Acceptance**: triggers on `pull_request` to `main`/`dev` and `push` to `dev`; matrix `ubuntu-latest`, `macos-latest`, `windows-latest`; `astral-sh/setup-uv` pinned to a major version with Python 3.14; `uv sync --locked`; runs the unittest command; no secrets; `permissions: contents: read`.
   - **Tests**: workflow green on the first push of `dev` containing it (all three OSes).
