@@ -1,9 +1,12 @@
 """Scripted terminal sessions exercising the menu like a user would."""
 
+from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 import unittest
 
-from sales_data_analyzer.application import SalesSession
+from sales_data_analyzer.application import ItemInput, SalesSession
+from sales_data_analyzer.cli.formatting import FORECAST_LIMITATIONS
 from sales_data_analyzer.cli.menu import DATA_NOTICE, NEEDS_COMPANY, TerminalMenu
 
 from menu_script import Script
@@ -303,3 +306,91 @@ class CatalogAndSaleMenuTests(unittest.TestCase):
         )
         sales = script.menu.session.current.sales.sales
         self.assertEqual([sale.id for sale in sales], ["S-1", "S-2"])
+
+
+def _daily_session(revenues: dict[int, int], tz: timezone | None = None) -> SalesSession:
+    """Session for 'Shop' with one sale per January 2026 day; day -> revenue."""
+    session = SalesSession()
+    workspace = session.create_company("Shop", "Retail")
+    workspace.register_product("p1", "Coffee", "Beverages")
+    for day, revenue in revenues.items():
+        item = ItemInput("p1", revenue, Decimal("1"), Decimal("0"))
+        workspace.record_sale(f"S{day}", datetime(2026, 1, day, 1, 0, tzinfo=tz), [item])
+    return session
+
+
+class ForecastMenuTests(unittest.TestCase):
+    """User Story 5 acceptance scenarios through the menu."""
+
+    FORECAST = str(Path(__file__).parent / "fixtures" / "forecast_14_days.csv")
+
+    def test_defaults_show_evaluation_future_and_limitations(self) -> None:
+        script = Script([*NEW_COMPANY, "7", self.FORECAST, "12", "", "", *EXIT])
+        script.run()
+        self.assertIn("Revenue forecast - Coffee Shop - all data", script.output)
+        self.assertIn("Training days: 12 | Test days: 2", script.output)
+        self.assertIn("Better on test days (lower MAE): model", script.output)
+        self.assertIn("Next 7 days:", script.output)
+        self.assertIn("2026-01-15  150.00", script.output)
+        self.assertIn("2026-01-21  210.00", script.output)
+        last_day = script.output.index("2026-01-21  210.00")
+        notice = script.output[last_day + 1 : last_day + 1 + len(FORECAST_LIMITATIONS)]
+        self.assertEqual(notice, list(FORECAST_LIMITATIONS))
+
+    def test_parameters_are_validated(self) -> None:
+        script = Script(
+            [*NEW_COMPANY, "7", self.FORECAST, "12", "0", "366", "3", "1", "x", "3", *EXIT]
+        )
+        script.run()
+        self.assertEqual(
+            script.output.count("Invalid value: expected a positive whole number up to 365."), 2
+        )
+        self.assertIn("Invalid value: expected at least 2 test days.", script.output)
+        self.assertIn("Training days: 11 | Test days: 3", script.output)
+        self.assertIn("Next 3 days:", script.output)
+
+    def test_short_history_explains_counts(self) -> None:
+        script = Script(["12", "", "", *EXIT], _daily_session({1: 1, 2: 2, 3: 3}))
+        script.run()
+        self.assertIn(
+            "Not enough history: 3 day(s) available, at least 7 needed "
+            "(5 training + 2 test). Add or import more days.",
+            script.output,
+        )
+
+    def test_missing_days_need_confirmation(self) -> None:
+        session = _daily_session({d: d for d in range(1, 9) if d != 4})
+        declined = Script(["12", "", "", "n", *EXIT], session)
+        declined.run()
+        self.assertIn("Some days between the first and last sale have no sales.", declined.output)
+        self.assertIn("Forecast cancelled.", declined.output)
+        self.assertNotIn("Next 7 days:", declined.output)
+        accepted = Script(["12", "", "", "y", *EXIT], session)
+        accepted.run()
+        self.assertIn("Training days: 6 | Test days: 2", accepted.output)
+
+    def test_constant_revenue(self) -> None:
+        script = Script(["12", "", "", *EXIT], _daily_session({d: 5 for d in range(1, 8)}))
+        script.run()
+        self.assertIn("Training revenue is constant, so no trend can be learned.", script.output)
+
+    def test_aware_data_asks_offset(self) -> None:
+        session = _daily_session({d: d for d in range(1, 8)}, tz=timezone.utc)
+        script = Script(["12", "", "", "3", "-03:00", *EXIT], session)
+        script.run()
+        self.assertIn(
+            "Invalid value: expected a UTC offset such as -03:00 or +00:00.", script.output
+        )
+        self.assertIn("2026-01-07   8.00", script.output)  # UTC day 7 becomes day 6
+
+    def test_naive_data_does_not_ask_offset(self) -> None:
+        script = Script(["12", "", "", *EXIT], _daily_session({d: d for d in range(1, 8)}))
+        script.run()
+        self.assertFalse(any(line.startswith("UTC offset") for line in script.output))
+
+    def test_empty_selection(self) -> None:
+        session = _daily_session({1: 1})
+        script = Script(["8", "2026-02-01", "2026-02-02", "12", *EXIT], session)
+        script.run()
+        self.assertIn("No sales in the current selection.", script.output)
+        self.assertFalse(any(line.startswith("Days to forecast") for line in script.output))

@@ -225,7 +225,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: golden output; one test per mapped condition; "better" line for model, baseline and tie.
   - **Done when**: tests pass; commit `feat: explain forecast results and limitations`.
 
-- [ ] T023 [US5] Wire option 12 (forecast) in src/sales_data_analyzer/cli/menu.py
+- [X] T023 [US5] Wire option 12 (forecast) in src/sales_data_analyzer/cli/menu.py
   - **Files**: `src/sales_data_analyzer/cli/menu.py`, `tests/test_cli_menu.py`
   - **Acceptance**: prompts horizon (1–365) and test days (blank = defaults; test days < 2 or horizon outside 1–365 re-asked); offset prompt only for aware data (FR-028); on missing-days error asks the confirmation and retries with `missing_days="zero"` only on `y` (FR-027); empty selection → `No sales in the current selection.`
   - **Tests**: User Story 5 scenarios 1–6 scripted.

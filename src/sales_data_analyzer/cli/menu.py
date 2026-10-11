@@ -6,24 +6,29 @@ drive the menu in tests exactly as a person would at the keyboard.
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import timedelta
 
 from sales_data_analyzer.application import (
     ApplicationError,
     CatalogConflictError,
     DuplicateSaleError,
     ItemInput,
+    NoSalesInSelectionError,
     SalesSession,
 )
 from sales_data_analyzer.importing import ImportValidationError
 
 from .formatting import (
+    explain_forecast_error,
     format_financial,
+    format_forecast,
     format_id_list,
     format_catalog,
     format_import_summary,
     format_money,
     format_products,
     format_scope,
+    is_missing_days_error,
     plural,
 )
 from .parsing import (
@@ -34,11 +39,15 @@ from .parsing import (
     parse_path,
     parse_positive_int,
     parse_text,
+    parse_utc_offset,
     parse_yes_no,
 )
 
 DATA_NOTICE = "Data is kept in memory only and is lost when you exit."
 NEEDS_COMPANY = "Not done: create or select a company first."
+MAX_HORIZON = 365
+DEFAULT_HORIZON = 7
+DEFAULT_TEST_DAYS = 2
 
 
 @dataclass(frozen=True)
@@ -80,7 +89,7 @@ class TerminalMenu:
             _Option(9, "Clear period", self._clear_period),
             _Option(10, "Financial analysis", self._financial_analysis),
             _Option(11, "Product analysis", self._product_analysis),
-            _Option(12, "Revenue forecast", None),
+            _Option(12, "Revenue forecast", self._forecast),
         )
 
     # -- loop -----------------------------------------------------------------
@@ -302,6 +311,47 @@ class TerminalMenu:
         for line in format_products(result, self._scope(), names):
             self._say(line)
 
+    # -- forecast (US5) -------------------------------------------------------------
+
+    def _forecast(self) -> None:
+        """Ask the forecast parameters, run it and explain results or refusals."""
+        workspace = self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say(explain_forecast_error(NoSalesInSelectionError()))
+            return
+        horizon = self._ask(
+            f"Days to forecast (1-{MAX_HORIZON}, blank = {DEFAULT_HORIZON}): ", _parse_horizon
+        )
+        test_days = self._ask(
+            f"Test days (at least 2, blank = {DEFAULT_TEST_DAYS}): ", _parse_test_days
+        )
+        offset = None
+        if self.session.data_is_aware():
+            self._say("These sales have time zone offsets; days are grouped by a UTC offset.")
+            offset = self._ask("UTC offset (+HH:MM or -HH:MM, blank = +00:00): ", _parse_offset)
+        options = {"horizon": horizon, "test_days": test_days, "utc_offset": offset}
+        try:
+            result = self.session.run_forecast(**options)
+        except ValueError as error:
+            self._say(explain_forecast_error(error))
+            if not is_missing_days_error(error):
+                return
+            question = (
+                "Treat missing days as zero revenue? Only answer yes if your records "
+                "are complete. [y/N] "
+            )
+            if not self._ask(question, parse_yes_no):
+                self._say("Forecast cancelled.")
+                return
+            try:
+                result = self.session.run_forecast(missing_days="zero", **options)
+            except ValueError as retry_error:
+                self._say(explain_forecast_error(retry_error))
+                return
+        scope = f"{workspace.company.name} - {self.session.selection.describe()}"
+        for line in format_forecast(result, scope):
+            self._say(line)
+
     # -- prompt helpers ---------------------------------------------------------
 
     def _say(self, line: str) -> None:
@@ -315,6 +365,28 @@ class TerminalMenu:
                 return parser(self._input(prompt))
             except InputError as error:
                 self._say(f"Invalid value: {error}.")
+
+
+def _parse_horizon(text: str) -> int:
+    """Return the forecast horizon in days; blank means the default."""
+    if not text.strip():
+        return DEFAULT_HORIZON
+    return parse_positive_int(text, maximum=MAX_HORIZON)
+
+
+def _parse_test_days(text: str) -> int:
+    """Return the number of test days (at least 2); blank means the default."""
+    if not text.strip():
+        return DEFAULT_TEST_DAYS
+    value = parse_positive_int(text)
+    if value < 2:
+        raise InputError("expected at least 2 test days")
+    return value
+
+
+def _parse_offset(text: str) -> timedelta:
+    """Return a UTC offset; blank means +00:00."""
+    return timedelta(0) if not text.strip() else parse_utc_offset(text)
 
 
 def _describe_import_error(error: ImportValidationError) -> str:
