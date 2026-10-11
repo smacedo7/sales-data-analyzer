@@ -5,7 +5,10 @@ workspace's references only after the domain accepted everything. A refused
 operation therefore leaves the workspace exactly as it was.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 
 from sales_data_analyzer.domain.company import Company
@@ -18,8 +21,20 @@ from .errors import (
     CatalogConflictError,
     DuplicateProductError,
     DuplicateSaleError,
+    EmptySaleError,
     TimestampAwarenessError,
+    UnknownProductError,
 )
+
+
+@dataclass(frozen=True)
+class ItemInput:
+    """One item typed for a manual sale; values are validated by SaleItem."""
+
+    product_id: str
+    quantity: int
+    unit_price: Decimal
+    unit_cost: Decimal
 
 
 @dataclass(frozen=True)
@@ -86,6 +101,54 @@ class CompanyWorkspace:
         if not isinstance(product_id, str):
             raise TypeError("product_id must be a string")
         return self._catalog.get(product_id.strip())
+
+    # -- manual sales -------------------------------------------------------------
+
+    def has_sale(self, sale_id: str) -> bool:
+        """Return True when a sale with the trimmed ID already exists."""
+        if not isinstance(sale_id, str):
+            raise TypeError("sale_id must be a string")
+        key = sale_id.strip()
+        return any(sale.id == key for sale in self._sales.sales)
+
+    def record_sale(self, sale_id: str, date_time: datetime, items: Sequence[ItemInput]) -> Sale:
+        """Store a new sale built from catalog products, all or nothing.
+
+        Checks, in order: duplicate sale ID (DuplicateSaleError), no items
+        (EmptySaleError), product missing from the catalog (UnknownProductError)
+        and mixing timestamps with and without offsets (TimestampAwarenessError).
+        Offsets are normalized to UTC, as imports do. Item values are validated
+        by the domain (TypeError/ValueError). Prices and costs are stored
+        exactly as given and never derived from the catalog.
+        """
+        if self.has_sale(sale_id):
+            raise DuplicateSaleError((sale_id.strip(),))
+        if not items:
+            raise EmptySaleError()
+        if not isinstance(date_time, datetime):
+            raise TypeError("date_time must be a datetime")
+        products = []
+        for item in items:
+            if not isinstance(item, ItemInput):
+                raise TypeError("items must be ItemInput values")
+            product = self.find_product(item.product_id)
+            if product is None:
+                raise UnknownProductError(item.product_id.strip())
+            products.append(product)
+        if date_time.utcoffset() is not None:
+            date_time = date_time.astimezone(timezone.utc)
+        if self._sales.sales and (
+            _is_aware(self._sales.sales[0]) != (date_time.utcoffset() is not None)
+        ):
+            raise TimestampAwarenessError()
+
+        sale = Sale(sale_id, self._company, date_time)
+        for product, item in zip(products, items, strict=True):
+            sale.add_item(product, item.quantity, item.unit_price, item.unit_cost)
+        candidate = self._copy_sales()
+        candidate.add_sale(sale)
+        self._sales = candidate
+        return sale
 
     # -- import -----------------------------------------------------------------
 

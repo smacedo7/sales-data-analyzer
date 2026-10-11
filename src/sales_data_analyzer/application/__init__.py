@@ -20,17 +20,21 @@ from .errors import (
     UnknownProductError,
 )
 from .session import SalesSession, Selection
+from .workspace import CompanyWorkspace, ImportSummary, ItemInput
 
 __all__ = [
     "ApplicationError",
     "CatalogConflictError",
     "CompanyNotFoundError",
+    "CompanyWorkspace",
     "DuplicateCompanyError",
     "DuplicateProductError",
     "DuplicateSaleError",
     "EmptySaleError",
+    "ImportSummary",
     "InsufficientHistoryError",
     "InvalidPeriodError",
+    "ItemInput",
     "NoCompanySelectedError",
     "NoSalesInSelectionError",
     "SalesSession",

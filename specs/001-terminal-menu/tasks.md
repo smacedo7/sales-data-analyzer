@@ -185,7 +185,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
 
 **Independent Test**: register two products, list, find one, record a two-item sale (total 26.00, cost 10.00), see it in the financial analysis.
 
-- [ ] T018 [US4] Implement `record_sale` and `ItemInput` in src/sales_data_analyzer/application/workspace.py
+- [X] T018 [US4] Implement `record_sale` and `ItemInput` in src/sales_data_analyzer/application/workspace.py
   - **Files**: `src/sales_data_analyzer/application/workspace.py`, `tests/test_application_workspace.py`
   - **Acceptance**: `ItemInput(product_id, quantity, unit_price, unit_cost)` frozen; `has_sale(sale_id) -> bool` (trimmed) for the menu's early check; aware date-times normalized to UTC like the importer; checks in order: duplicate sale ID → `DuplicateSaleError`, empty items → `EmptySaleError`, unknown product → `UnknownProductError`, awareness mismatch → `TimestampAwarenessError`; item value errors from `SaleItem` propagate; candidate dataset swap.
   - **Tests**: FR-008–FR-010; totals 26.00/10.00 exactly; each refusal leaves state unchanged; a later catalog product with the same values does not affect stored items.
