@@ -1,6 +1,9 @@
 """Turn results into plain terminal text; rounding happens only here."""
 
+from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal
+
+from sales_data_analyzer.application.workspace import ImportSummary
 
 _CENT = Decimal("0.01")
 _TENTH = Decimal("0.1")
@@ -27,3 +30,18 @@ def format_percent(ratio: Decimal | None) -> str:
 def format_float(value: float) -> str:
     """Return a statistical value with two decimals and thousands separators."""
     return f"{value:,.2f}"
+
+
+def format_id_list(ids: Sequence[str], limit: int = 5) -> str:
+    """Return up to limit IDs separated by commas, plus how many were left out."""
+    shown = ", ".join(ids[:limit])
+    hidden = len(ids) - limit
+    return f"{shown} and {hidden} more" if hidden > 0 else shown
+
+
+def format_import_summary(summary: ImportSummary) -> str:
+    """Describe a successful import in one line."""
+    return (
+        f"Imported {summary.sales_added} sales, {summary.items_added} items. "
+        f"Products: {summary.new_products} new, {summary.reused_products} reused."
+    )

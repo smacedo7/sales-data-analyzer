@@ -42,3 +42,23 @@ class PrimitiveFormattingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ImportFormattingTests(unittest.TestCase):
+    """ID lists and import summaries."""
+
+    def test_id_list(self) -> None:
+        from sales_data_analyzer.cli.formatting import format_id_list
+
+        self.assertEqual(format_id_list(("001", "002")), "001, 002")
+        ids = tuple(f"{n:03}" for n in range(7))
+        self.assertEqual(format_id_list(ids), "000, 001, 002, 003, 004 and 2 more")
+
+    def test_summary(self) -> None:
+        from sales_data_analyzer.application.workspace import ImportSummary
+        from sales_data_analyzer.cli.formatting import format_import_summary
+
+        self.assertEqual(
+            format_import_summary(ImportSummary(2, 3, 2, 0)),
+            "Imported 2 sales, 3 items. Products: 2 new, 0 reused.",
+        )

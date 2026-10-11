@@ -135,7 +135,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: FR-011–FR-018: valid import counts; invalid file → `ImportValidationError`, state unchanged; re-import → `DuplicateSaleError` with IDs `("001","002")`, state unchanged; conflict → `CatalogConflictError(("007",))`; identical product reused (`item.product is catalog product`); aware file after naive data refused; historical prices equal file values; `sale.company is workspace.company`.
   - **Done when**: tests pass; commit `feat: import CSV into a company with duplicate and conflict policies`.
 
-- [ ] T013 [US2] Wire option 7 (Import CSV) in src/sales_data_analyzer/cli/menu.py
+- [X] T013 [US2] Wire option 7 (Import CSV) in src/sales_data_analyzer/cli/menu.py
   - **Files**: `src/sales_data_analyzer/cli/menu.py`, `src/sales_data_analyzer/cli/formatting.py`, `tests/test_cli_menu.py`, `tests/test_cli_formatting.py`
   - **Acceptance**: path via `parse_path`; success line `Imported N sales, M items. Products: X new, Y reused.`; `ImportValidationError` → `Import refused at line L, field F: reason.`; duplicate/conflict errors list up to five IDs taken from the error attributes, plus `and N more`; missing/unreadable file → `Import refused: cannot read file.` (line omitted when the importer reports line 0).
   - **Tests**: User Story 2 scenarios 1–6 scripted; quoted path with spaces.

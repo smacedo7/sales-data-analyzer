@@ -7,10 +7,16 @@ drive the menu in tests exactly as a person would at the keyboard.
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from sales_data_analyzer.application import ApplicationError, SalesSession
+from sales_data_analyzer.application import (
+    ApplicationError,
+    CatalogConflictError,
+    DuplicateSaleError,
+    SalesSession,
+)
 from sales_data_analyzer.importing import ImportValidationError
 
-from .parsing import InputError, parse_positive_int, parse_text, parse_yes_no
+from .formatting import format_id_list, format_import_summary
+from .parsing import InputError, parse_path, parse_positive_int, parse_text, parse_yes_no
 
 DATA_NOTICE = "Data is kept in memory only and is lost when you exit."
 NEEDS_COMPANY = "Not done: create or select a company first."
@@ -50,7 +56,7 @@ class TerminalMenu:
             _Option(4, "List products", None),
             _Option(5, "Find product", None),
             _Option(6, "Record sale", None),
-            _Option(7, "Import CSV", None),
+            _Option(7, "Import CSV", self._import_csv),
             _Option(8, "Set period", None),
             _Option(9, "Clear period", None),
             _Option(10, "Financial analysis", None),
@@ -149,6 +155,29 @@ class TerminalMenu:
         index = self._ask("Company number: ", parse_positive_int)
         workspace = self.session.select_company(index)
         self._say(f"Selected: {workspace.company.name}")
+
+    # -- import (US2) -------------------------------------------------------------
+
+    def _import_csv(self) -> None:
+        """Import a CSV file into the selected company, reporting refusals with IDs."""
+        workspace = self.session.require_current()
+        path = self._ask("CSV file path: ", parse_path)
+        try:
+            summary = workspace.import_sales(path)
+        except DuplicateSaleError as error:
+            self._say(
+                f"Import refused: {len(error.sale_ids)} sale ID(s) already exist in this "
+                f"company: {format_id_list(error.sale_ids)}. Nothing was imported."
+            )
+            return
+        except CatalogConflictError as error:
+            self._say(
+                f"Import refused: {len(error.product_ids)} product ID(s) have a different "
+                f"name or category in the catalog: {format_id_list(error.product_ids)}. "
+                "Nothing was imported."
+            )
+            return
+        self._say(format_import_summary(summary))
 
     # -- prompt helpers ---------------------------------------------------------
 

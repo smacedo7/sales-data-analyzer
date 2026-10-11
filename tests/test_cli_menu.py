@@ -1,7 +1,9 @@
 """Scripted terminal sessions exercising the menu like a user would."""
 
+from pathlib import Path
 import unittest
 
+from sales_data_analyzer.application import SalesSession
 from sales_data_analyzer.cli.menu import DATA_NOTICE, NEEDS_COMPANY, TerminalMenu
 
 from menu_script import Script
@@ -93,3 +95,49 @@ class CompanyMenuTests(unittest.TestCase):
         script.run()
         self.assertIn("No companies yet.", script.output)
         self.assertIn("Not done: choose a company number from 1 to 1.", script.output)
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
+VALID = str(FIXTURES / "valid_sales.csv")
+NEW_COMPANY = ["1", "Coffee Shop", "Retail"]
+EXIT = ["0", "y"]
+
+
+class ImportMenuTests(unittest.TestCase):
+    """User Story 2 acceptance scenarios through the menu."""
+
+    def test_import_then_repeat_is_refused(self) -> None:
+        script = Script([*NEW_COMPANY, "7", VALID, "7", f'"{VALID}"', *EXIT])
+        script.run()
+        self.assertIn("Imported 2 sales, 3 items. Products: 2 new, 0 reused.", script.output)
+        self.assertIn(
+            "Import refused: 2 sale ID(s) already exist in this company: 001, 002. "
+            "Nothing was imported.",
+            script.output,
+        )
+        self.assertEqual(len(script.menu.session.current.sales.sales), 2)
+
+    def test_invalid_and_missing_files(self) -> None:
+        invalid = str(FIXTURES / "invalid_sales.csv")
+        missing = str(FIXTURES / "does-not-exist.csv")
+        script = Script([*NEW_COMPANY, "7", invalid, "7", missing, *EXIT])
+        script.run()
+        self.assertIn(
+            "Import refused at line 2, field quantity: expected positive integer.", script.output
+        )
+        self.assertIn("Import refused: cannot read file.", script.output)
+        self.assertNotIn("does-not-exist", "\n".join(script.output[-20:]))
+        self.assertEqual(script.menu.session.current.sales.sales, ())
+
+    def test_catalog_conflict(self) -> None:
+        session = SalesSession()
+        session.create_company("Coffee Shop", "Retail").register_product(
+            "007", "Coffee", "Beverages"
+        )
+        script = Script(["7", VALID, *EXIT], session=session)
+        script.run()
+        self.assertIn(
+            "Import refused: 1 product ID(s) have a different name or category in the "
+            "catalog: 007. Nothing was imported.",
+            script.output,
+        )
