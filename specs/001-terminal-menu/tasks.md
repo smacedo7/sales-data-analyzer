@@ -67,7 +67,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
 
 **Purpose**: packages, errors, parsing, formatting primitives and the menu shell.
 
-- [ ] T005 Create application package, error hierarchy and session skeleton in src/sales_data_analyzer/application/errors.py
+- [X] T005 Create application package, error hierarchy and session skeleton in src/sales_data_analyzer/application/errors.py
   - **Files**: `src/sales_data_analyzer/application/__init__.py`, `src/sales_data_analyzer/application/errors.py`, `src/sales_data_analyzer/application/session.py` (skeleton), `tests/test_application_errors.py`
   - **Acceptance**: classes exactly as in data-model.md "Error hierarchy"; `ApplicationError(ValueError)`; `DuplicateSaleError.sale_ids` and `CatalogConflictError.product_ids` are `tuple[str, ...]`; `str(error)` contains only counts, never IDs, values or paths (constitution IV); the terminal shows IDs from the attributes. Also a `SalesSession` skeleton in `application/session.py` with `current` (initially `None`) and `require_current()` raising `NoCompanySelectedError`, so the menu shell can be built on it.
   - **Tests**: subclassing, attributes, messages without IDs, `require_current()` on an empty session.
