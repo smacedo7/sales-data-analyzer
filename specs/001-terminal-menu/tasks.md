@@ -53,7 +53,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: full suite unchanged and green.
   - **Done when**: `ruff check .` exits 0; diff touches only `pyproject.toml`, `uv.lock` and per-line suppressions; commit `chore: add Ruff linting with a conservative rule set`.
 
-- [ ] T004 Add Ruff steps to CI in .github/workflows/tests.yml
+- [X] T004 Add Ruff steps to CI in .github/workflows/tests.yml
   - **Files**: `.github/workflows/tests.yml`
   - **Acceptance**: one job (ubuntu) runs `uv run ruff check .` and `uv run ruff format --check src/sales_data_analyzer/application src/sales_data_analyzer/cli tests/test_application_*.py tests/test_cli_*.py` (paths created later; step tolerates missing paths until T005 by listing only existing ones, or is added with T005).
   - **Tests**: CI green.
