@@ -243,7 +243,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
   - **Tests**: itself; green in CI on all three OSes (SC-006).
   - **Done when**: CI green; commit `test: add end-to-end terminal session`.
 
-- [ ] T025 [P] Update README for level 2 in README.md
+- [X] T025 [P] Update README for level 2 in README.md
   - **Files**: `README.md`, `docs/product-vision.md` (current state table)
   - **Acceptance**: "Running the terminal menu" section (macOS and Windows commands), import policies summary, in-memory notice, updated test command and count, roadmap tick for level 2, tech stack mentions Ruff and CI.
   - **Tests**: commands in README executed verbatim by `/project-verification`.

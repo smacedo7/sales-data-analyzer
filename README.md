@@ -5,7 +5,8 @@ with a desktop application planned for a later stage.
 
 The current implementation provides validated sales entities, financial and
 product analyses, atomic CSV import, and a small Machine Learning forecasting service. Features
-are available through the Python API and an executable synthetic-data example.
+are available through an interactive terminal menu (level 2), the Python API and
+executable synthetic-data examples.
 
 ## Implemented Features
 
@@ -19,10 +20,10 @@ are available through the Python API and an executable synthetic-data example.
 - Daily revenue aggregation with explicit missing-day and timezone policies.
 - Linear regression forecasting, chronological holdout evaluation and a naive baseline.
 - Typed results, English docstrings and automated tests using `unittest`.
+- Terminal menu (level 2): companies, per-company product catalog, manual
+  sales, CSV import, inclusive periods, analyses and the revenue forecast.
 
-Charts, PDF reports, persistence and a desktop interface remain
-planned. The package entry point is still a placeholder; use the example below
-to run the implemented functionality.
+Charts, PDF reports, persistence and a desktop interface remain planned.
 
 ## Getting Started
 
@@ -53,18 +54,68 @@ Expected accounting results:
 | Gross margin | 0.6 (60%) |
 | Average order value | 75 |
 
+## Running the Terminal Menu
+
+The same commands work in macOS/Linux shells and Windows PowerShell:
+
+```sh
+uv sync --locked
+uv run sales-data-analyzer
+# or: uv run python -m sales_data_analyzer
+```
+
+The menu lists numbered options: create/select a company, register, list and
+find products, record a sale, import a CSV, set or clear a period, run the
+financial and product analyses, and forecast revenue. Type the option number
+and answer the prompts; invalid values are explained and asked again, and no
+input ends the program with an error trace.
+
+**Data is kept in memory only.** Everything is lost when you exit (option `0`,
+which asks for confirmation) or press Ctrl+C / Ctrl+D. Persistence arrives in
+level 3.
+
+Try it with the included fixture: create a company, choose `7`, type
+`tests/fixtures/valid_sales.csv` (quotes from drag-and-drop are accepted), then
+`10` for revenue 45.40, cost 18.20 and gross profit 27.20. For a forecast,
+import `tests/fixtures/forecast_14_days.csv` into a new company and choose `12`.
+
+Import and entry policies:
+
+- A CSV import is all or nothing. It is refused when any sale ID already exists
+  in the company (so importing the same file twice is refused) or when a
+  product ID has a different name or category than the catalog; the refusal
+  lists the IDs.
+- Products already in the catalog with the same name and category are reused;
+  new ones are added to the catalog. Prices and costs stay historical per item.
+- A company's sales either all carry UTC offsets or none do; offsets are
+  normalized to UTC, and periods are read as UTC days for such data. The
+  forecast asks which UTC offset to use for grouping days.
+- Periods include both the start and the end date.
+- Manual sales use products from the catalog and need at least one item.
+
 ## Tests
 
 ```sh
 uv run python -m unittest discover -s tests -v
 ```
 
-Tests cover CSV validation, atomic import, ID preservation, domain validation, exact accounting, empty/zero/loss cases, product
+Tests cover the application layer, terminal parsing, formatting and scripted
+menu sessions, an end-to-end run of the real entry point, CSV validation, atomic import, ID preservation, domain validation, exact accounting, empty/zero/loss cases, product
 identity, ranking ties, temporal ordering, holdout isolation, baseline errors,
 missing days, timezone conversion and invalid forecast inputs.
 
 If the default uv cache is inaccessible, prefix commands with
 `UV_CACHE_DIR=/tmp/sales-uv-cache`.
+
+Lint and format checks (Ruff, a development dependency):
+
+```sh
+uv run ruff check .
+uv run ruff format --check src/sales_data_analyzer/application src/sales_data_analyzer/cli
+```
+
+GitHub Actions runs the tests on Ubuntu, macOS and Windows plus the Ruff
+checks on every pull request to `main` or `dev` and every push to `dev`.
 
 ## Current Technology Stack
 
@@ -76,9 +127,10 @@ If the default uv cache is inaccessible, prefix commands with
 | Standard library `unittest` | Automated tests |
 | scikit-learn | Linear regression |
 | NumPy and SciPy | Numerical dependencies of scikit-learn |
+| Ruff (development only) | Lint and format checks |
+| GitHub Actions | Continuous integration on Ubuntu, macOS and Windows |
 
-Pandas, Matplotlib, PySide6 and SQLAlchemy/SQLite are candidates for future
-features. pytest and Ruff are not currently configured.
+Pandas, Matplotlib, PySide6 and SQLite are candidates for future features.
 
 ## Architecture and Object Model
 
@@ -87,7 +139,9 @@ src/sales_data_analyzer/
 ├── domain/        # Sales entities and shared validation
 ├── importing/     # Import contract, CSV adapter and row validation
 ├── analysis/      # Abstract Analysis, implementations and typed results
-└── forecasting/   # Daily aggregation and scikit-learn forecasting adapter
+├── forecasting/   # Daily aggregation and scikit-learn forecasting adapter
+├── application/   # Level 2: session, company workspaces, use-case errors
+└── cli/           # Level 2: terminal menu, input parsing, output formatting
 examples/
 ├── import_and_analyze.py
 └── analysis_and_forecast.py
@@ -97,7 +151,9 @@ docs/
 
 The domain and descriptive analyses depend only on the standard library.
 The forecasting module imports scikit-learn when a forecast is requested.
-The analysis and forecasting methods serve as the current use cases.
+The `application` layer coordinates the existing classes into use cases that
+any interface can reuse (terminal now, GUI later) and never reads input or
+prints; `cli` is the only package that does. Dependencies point downwards only.
 
 | Component | Responsibility |
 | --- | --- |
@@ -114,6 +170,11 @@ The analysis and forecasting methods serve as the current use cases.
 | `ProductAnalysis` | Product grouping and rankings |
 | `AnalysisResult` | Frozen result associated with the dataset company |
 | `RevenueForecaster` | Temporal evaluation and future revenue predictions |
+| `SalesSession` | Companies, selected company and active period of one run |
+| `CompanyWorkspace` | One company's catalog and sales; manual sales and import policies |
+| `Selection` | All data or an inclusive date period |
+| `ApplicationError` | Base of the use-case refusals (duplicates, conflicts, history) |
+| `TerminalMenu` | Numbered menu over the session with injectable input/output |
 
 FinancialAnalysis and ProductAnalysis inherit from Analysis and implement the
 same method, allowing callers to use them polymorphically. AnalysisResult holds
@@ -211,6 +272,10 @@ with four pages and matching previews:
 - [Analysis](docs/diagrams/level-one-analysis.svg): polymorphism and typed results.
 - [Forecast](docs/diagrams/level-one-forecast.svg): prediction/evaluation contracts.
 
+The level 2 layers are modeled in [level-two.drawio](docs/diagrams/level-two.drawio)
+([preview](docs/diagrams/level-two.svg)); the feature is specified in
+[specs/001-terminal-menu](specs/001-terminal-menu/spec.md).
+
 See the [delivery checklist](docs/level-one-delivery.md) for implementation and
 test evidence, and the [Portuguese video script](docs/video-script-pt.md) for a
 planned presentation under three minutes. Recording, publication and submission
@@ -230,6 +295,8 @@ extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 - [x] Prepare delivery evidence and a video script.
 - [ ] Record/publish the video and submit the delivery links.
 - [x] Implement CSV import and validation.
+- [x] Level 2: interactive terminal menu over the existing operations (in memory).
+- [x] Continuous integration and Ruff lint checks.
 - [ ] Implement descriptive temporal analyses and charts.
 - [ ] Add reporting and PDF export.
 - [ ] Add local persistence.
@@ -237,5 +304,6 @@ extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 
 ## Development Workflow
 
-Changes use dedicated branches and pull requests for review before merging
-into `main`. Source code, documentation, commits and PR descriptions are in English.
+Work is integrated on the `dev` branch and proposed to `main` through a
+`dev → main` pull request reviewed before merging. Features are specified with
+Spec Kit in `specs/` (see [docs/ai-workflow.md](docs/ai-workflow.md)). Source code, documentation, commits and PR descriptions are in English.

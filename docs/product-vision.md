@@ -4,7 +4,7 @@ Companion to the [constitution](../.specify/memory/constitution.md), which holds
 the binding principles. This page records what exists today, where the product
 is going and in which order.
 
-## Current state (verified 2026-10-11 on `main` at `e80c49a`)
+## Current state (level 1 verified 2026-10-11 on `main` at `e80c49a`; level 2 on `dev`)
 
 | Area | Status | Evidence |
 | --- | --- | --- |
@@ -12,13 +12,13 @@ is going and in which order.
 | CSV import with atomic validation | Implemented | `importing/__init__.py`, `docs/csv-import.md` |
 | Financial and product analyses (Decimal) | Implemented | `analysis/__init__.py` |
 | Daily revenue forecast (linear trend + naive baseline, MAE/RMSE) | Implemented | `forecasting/__init__.py` |
-| Automated tests | 42 `unittest` tests passing | `uv run python -m unittest discover -s tests` |
+| Automated tests | 144 `unittest` tests passing on `dev` (42 at level 1) | `uv run python -m unittest discover -s tests` |
 | Executable examples | Both run with the documented outputs | `examples/` |
 | UML of implemented model | Four-page draw.io + SVG previews | `docs/diagrams/level-one*` |
-| Program entry point | Placeholder (`main()` prints a greeting; `main.py` is a scratch script) | `src/sales_data_analyzer/__init__.py`, `main.py` |
-| Product catalog per company | Not modeled outside a single CSV import | — |
+| Program entry point | Level 2 terminal menu (`uv run sales-data-analyzer`) | `cli/`, `application/` (on `dev`) |
+| Product catalog per company | Implemented in `CompanyWorkspace` (in memory) | `application/workspace.py` (on `dev`) |
 | Persistence, charts, reports, GUI | Not started | — |
-| CI and linter | Not configured | no `.github/workflows`, no Ruff config |
+| CI and linter | GitHub Actions (3 OSes) and Ruff | `.github/workflows/tests.yml`, `pyproject.toml` |
 
 ## Final vision
 
