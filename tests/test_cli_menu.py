@@ -38,6 +38,14 @@ class MenuShellTests(unittest.TestCase):
         self.assertEqual(script.run(), 0)
         self.assertIn("Data is kept in memory only and was discarded.", script.output)
 
+    def test_ctrl_c_exits_cleanly(self) -> None:
+        def interrupt(prompt: str) -> str:
+            raise KeyboardInterrupt
+
+        output: list[str] = []
+        self.assertEqual(TerminalMenu(None, interrupt, output.append).run(), 0)
+        self.assertIn("Data is kept in memory only and was discarded.", output)
+
     def test_company_guard(self) -> None:
         for option in map(str, range(3, 13)):
             with self.subTest(option=option):

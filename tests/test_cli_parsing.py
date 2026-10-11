@@ -62,6 +62,8 @@ class ParsingTests(unittest.TestCase):
                 parse_positive_int(bad)
         with self.assertRaises(InputError):
             parse_positive_int("366", maximum=365)
+        with self.assertRaises(InputError):  # not Python's digit-limit ValueError
+            parse_positive_int("9" * 5000)
 
     def test_amount_is_exact_decimal(self) -> None:
         self.assertEqual(parse_amount("10.125"), Decimal("10.125"))
@@ -81,6 +83,11 @@ class ParsingTests(unittest.TestCase):
         aware = parse_datetime("2026-01-05T10:00:00-03:00")
         self.assertEqual(aware.utcoffset(), timedelta(hours=-3))
         self.assertEqual(parse_datetime("2026-01-05T10:00:00Z").tzinfo, timezone.utc)
+
+    def test_datetime_outside_utc_range(self) -> None:
+        for stamp in ("0001-01-01T00:30:00+01:00", "9999-12-31T23:30:00-01:00"):
+            with self.subTest(stamp=stamp), self.assertRaises(InputError):
+                parse_datetime(stamp)
 
     def test_parity_with_csv_validator(self) -> None:
         stamps = (

@@ -5,7 +5,7 @@ workspace's references only after the domain accepted everything. A refused
 operation therefore leaves the workspace exactly as it was.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -118,11 +118,15 @@ class CompanyWorkspace:
         (EmptySaleError), product missing from the catalog (UnknownProductError)
         and mixing timestamps with and without offsets (TimestampAwarenessError).
         Offsets are normalized to UTC, as imports do. Item values are validated
-        by the domain (TypeError/ValueError). Prices and costs are stored
+        by the domain (TypeError/ValueError); items that are not an iterable of
+        ItemInput raise TypeError. Prices and costs are stored
         exactly as given and never derived from the catalog.
         """
         if self.has_sale(sale_id):
             raise DuplicateSaleError((sale_id.strip(),))
+        if isinstance(items, (str, bytes)) or not isinstance(items, Iterable):
+            raise TypeError("items must be a sequence of ItemInput values")
+        items = tuple(items)
         if not items:
             raise EmptySaleError()
         if not isinstance(date_time, datetime):
@@ -136,7 +140,10 @@ class CompanyWorkspace:
                 raise UnknownProductError(item.product_id.strip())
             products.append(product)
         if date_time.utcoffset() is not None:
-            date_time = date_time.astimezone(timezone.utc)
+            try:
+                date_time = date_time.astimezone(timezone.utc)
+            except OverflowError:
+                raise ValueError("the sale date and time is outside the supported range") from None
         if self._sales.sales and (
             _is_aware(self._sales.sales[0]) != (date_time.utcoffset() is not None)
         ):

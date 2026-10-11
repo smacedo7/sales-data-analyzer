@@ -50,7 +50,8 @@ def format_id_list(ids: Sequence[str], limit: int = 5) -> str:
 def format_import_summary(summary: ImportSummary) -> str:
     """Describe a successful import in one line."""
     return (
-        f"Imported {summary.sales_added} sales, {summary.items_added} items. "
+        f"Imported {plural(summary.sales_added, 'sale')}, "
+        f"{plural(summary.items_added, 'item')}. "
         f"Products: {summary.new_products} new, {summary.reused_products} reused."
     )
 

@@ -74,6 +74,10 @@ class ImportFormattingTests(unittest.TestCase):
             format_import_summary(ImportSummary(2, 3, 2, 0)),
             "Imported 2 sales, 3 items. Products: 2 new, 0 reused.",
         )
+        self.assertEqual(
+            format_import_summary(ImportSummary(1, 1, 0, 1)),
+            "Imported 1 sale, 1 item. Products: 0 new, 1 reused.",
+        )
 
 
 class AnalysisFormattingTests(unittest.TestCase):

@@ -6,7 +6,7 @@ valid in a file is valid at the prompt and vice versa.
 
 import os
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -14,7 +14,7 @@ _DATETIME = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[
 _AMOUNT = re.compile(r"[+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)")
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _OFFSET = re.compile(r"([+-])(\d{2}):(\d{2})")
-_INTEGER = re.compile(r"[0-9]+")
+_INTEGER = re.compile(r"[0-9]{1,18}")
 
 
 class InputError(ValueError):
@@ -78,7 +78,10 @@ def parse_datetime(text: str) -> datetime:
     try:
         if value[-6:-5] in ("+", "-") and (int(value[-5:-3]) > 23 or int(value[-2:]) > 59):
             raise ValueError
-        return datetime.fromisoformat(value)
+        parsed = datetime.fromisoformat(value)
+        if parsed.utcoffset() is not None:
+            parsed.astimezone(timezone.utc)  # must be representable in UTC
+        return parsed
     except ValueError, OverflowError:
         raise InputError("invalid calendar date or UTC offset") from None
 

@@ -177,12 +177,23 @@ class RecordSaleTests(unittest.TestCase):
             ("S-2", self.when, (ItemInput("001", 0, Decimal(1), Decimal(1)),), ValueError),
             ("S-2", self.when, (ItemInput("001", 1, Decimal(-1), Decimal(1)),), ValueError),
             ("S-2", "2026-01-05", self.items, TypeError),
+            ("S-2", self.when, None, TypeError),
+            (
+                "S-2",
+                datetime(1, 1, 1, 0, 30, tzinfo=timezone(timedelta(hours=1))),
+                self.items,
+                ValueError,
+            ),
             (" ", self.when, self.items, ValueError),
         )
         for sale_id, when, items, error in cases:
             with self.subTest(error=error.__name__, sale_id=sale_id), self.assertRaises(error):
                 self.workspace.record_sale(sale_id, when, items)
             self.assertEqual(snapshot(self.workspace), before)
+
+    def test_items_may_be_any_iterable(self) -> None:
+        sale = self.workspace.record_sale("S-1", self.when, (item for item in self.items))
+        self.assertEqual(len(sale.items), 2)
 
     def test_duplicate_is_checked_before_items(self) -> None:
         self.workspace.record_sale("S-1", self.when, self.items)
