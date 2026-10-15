@@ -26,7 +26,7 @@ dev = [
 [tool.ruff]
 target-version = "py314"
 line-length = 100
-# Spec Kit scripts are vendored tooling; Markdown docs are not linted as code.
+# Local Spec Kit tooling (not tracked) and Markdown docs are not linted as code.
 extend-exclude = [".specify", "specs", "docs", "*.md"]
 
 [tool.ruff.lint]

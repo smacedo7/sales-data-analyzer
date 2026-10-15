@@ -1,6 +1,6 @@
 # Product vision and roadmap
 
-Companion to the [constitution](../.specify/memory/constitution.md), which holds
+Companion to the project constitution, which holds
 the binding principles. This page records what exists today, where the product
 is going and in which order.
 

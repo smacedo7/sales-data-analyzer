@@ -306,4 +306,4 @@ extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 
 Work is integrated on the `dev` branch and proposed to `main` through a
 `dev → main` pull request reviewed before merging. Features are specified with
-Spec Kit in `specs/` (see [docs/ai-workflow.md](docs/ai-workflow.md)). Source code, documentation, commits and PR descriptions are in English.
+Spec Kit in `specs/`. Source code, documentation, commits and PR descriptions are in English.
