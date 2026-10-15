@@ -29,3 +29,10 @@ Thumbs.db
 # Local datasets and generated reports
 data/
 reports/
+
+# AI agent configuration stays local (not published)
+.claude/
+.specify/
+CLAUDE.md
+AGENTS.md
+docs/ai-workflow.md

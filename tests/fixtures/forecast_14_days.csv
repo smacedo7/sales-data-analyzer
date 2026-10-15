@@ -1,0 +1,15 @@
+sale_id,date_time,product_id,product,category,quantity,unit_price,unit_cost
+F-01,2026-01-01T10:00:00,100,Coffee,Beverages,1,10.00,4.00
+F-02,2026-01-02T10:00:00,100,Coffee,Beverages,2,10.00,4.00
+F-03,2026-01-03T10:00:00,100,Coffee,Beverages,3,10.00,4.00
+F-04,2026-01-04T10:00:00,100,Coffee,Beverages,4,10.00,4.00
+F-05,2026-01-05T10:00:00,100,Coffee,Beverages,5,10.00,4.00
+F-06,2026-01-06T10:00:00,100,Coffee,Beverages,6,10.00,4.00
+F-07,2026-01-07T10:00:00,100,Coffee,Beverages,7,10.00,4.00
+F-08,2026-01-08T10:00:00,100,Coffee,Beverages,8,10.00,4.00
+F-09,2026-01-09T10:00:00,100,Coffee,Beverages,9,10.00,4.00
+F-10,2026-01-10T10:00:00,100,Coffee,Beverages,10,10.00,4.00
+F-11,2026-01-11T10:00:00,100,Coffee,Beverages,11,10.00,4.00
+F-12,2026-01-12T10:00:00,100,Coffee,Beverages,12,10.00,4.00
+F-13,2026-01-13T10:00:00,100,Coffee,Beverages,13,10.00,4.00
+F-14,2026-01-14T10:00:00,100,Coffee,Beverages,14,10.00,4.00

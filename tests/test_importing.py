@@ -2,6 +2,7 @@
 import csv
 from decimal import Decimal
 import io
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -14,6 +15,7 @@ from sales_data_analyzer.domain.sales_dataset import SalesDataset
 from sales_data_analyzer.importing import CSVImporter, DataImporter, FIELDS, ImportValidationError
 
 FIXTURES = Path(__file__).parent / "fixtures"
+SRC = Path(__file__).resolve().parents[1] / "src"
 BASE = ['001', '2026-01-01T10:00:00', '007', 'Coffee', 'Drinks', '2', '10.10', '4.05']
 
 
@@ -148,7 +150,10 @@ class ImportTests(unittest.TestCase):
                 f'd=CSVImporter().load({str(FIXTURES / "valid_sales.csv")!r},Company("Shop","Retail")); '
                 'assert FinancialAnalysis().run(d).financial.sale_count == 2; '
                 'import sys; assert "sklearn" not in sys.modules')
-        subprocess.run([sys.executable, '-S', '-c', code], check=True)
+        # -S skips site-packages, including the editable-install path that uv
+        # creates, so the subprocess needs the source directory explicitly.
+        env = {**os.environ, "PYTHONPATH": str(SRC)}
+        subprocess.run([sys.executable, '-S', '-c', code], check=True, env=env)
 
 
 class CompanyTests(unittest.TestCase):
