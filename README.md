@@ -275,6 +275,8 @@ with four pages and matching previews:
 The level 2 layers are modeled in [level-two.drawio](docs/diagrams/level-two.drawio)
 ([preview](docs/diagrams/level-two.svg)); the feature is specified in
 [specs/001-terminal-menu](specs/001-terminal-menu/spec.md).
+A [Portuguese video script for level 2](docs/video-script-level-two-pt.md) plans
+its presentation under three minutes.
 
 See the [delivery checklist](docs/level-one-delivery.md) for implementation and
 test evidence, and the [Portuguese video script](docs/video-script-pt.md) for a
