@@ -70,9 +70,27 @@ financial and product analyses, and forecast revenue. Type the option number
 and answer the prompts; invalid values are explained and asked again, and no
 input ends the program with an error trace.
 
-**Data is kept in memory only.** Everything is lost when you exit (option `0`,
-which asks for confirmation) or press Ctrl+C / Ctrl+D. Persistence arrives in
-level 3.
+**Data is saved in a local SQLite database** (level 3). Every confirmed change
+is stored immediately, so option `0`, Ctrl+C and Ctrl+D exit without losing
+anything; the next start loads the same companies, products and sales. The
+start-up lines show which file is used:
+
+| System | Default database file |
+| --- | --- |
+| macOS | `~/Library/Application Support/Sales Data Analyzer/sales.sqlite3` |
+| Windows | `%LOCALAPPDATA%\Sales Data Analyzer\sales.sqlite3` |
+| Other | `$XDG_DATA_HOME/sales-data-analyzer/sales.sqlite3` (or `~/.local/share/...`) |
+
+Choose another file with `--database`, for example a demo database inside the
+project (the `data/` folder is ignored by Git):
+
+```sh
+uv run sales-data-analyzer --database data/demo.sqlite3
+```
+
+A file that is not a Sales Data Analyzer database, comes from a newer version
+or contains invalid rows is refused with exit status 2 and left unchanged. See
+[`docs/database.md`](docs/database.md) for the schema and guarantees.
 
 Try it with the included fixture: create a company, choose `7`, type
 `tests/fixtures/valid_sales.csv` (quotes from drag-and-drop are accepted), then
@@ -92,6 +110,8 @@ Import and entry policies:
   forecast asks which UTC offset to use for grouping days.
 - Periods include both the start and the end date.
 - Manual sales use products from the catalog and need at least one item.
+- Every import, manual sale and catalog change is stored in one database
+  transaction: if anything fails, nothing is saved and the session is unchanged.
 
 ## Tests
 
@@ -99,7 +119,9 @@ Import and entry policies:
 uv run python -m unittest discover -s tests -v
 ```
 
-Tests cover the application layer, terminal parsing, formatting and scripted
+Tests cover SQLite persistence (exact round trips, reopening, constraints,
+rollback after injected failures, locked and invalid files, always on temporary
+databases), the application layer, terminal parsing, formatting and scripted
 menu sessions, an end-to-end run of the real entry point, CSV validation, atomic import, ID preservation, domain validation, exact accounting, empty/zero/loss cases, product
 identity, ranking ties, temporal ordering, holdout isolation, baseline errors,
 missing days, timezone conversion and invalid forecast inputs.
@@ -126,11 +148,12 @@ checks on every pull request to `main` or `dev` and every push to `dev`.
 | Standard library `decimal` | Exact accounting amounts |
 | Standard library `unittest` | Automated tests |
 | scikit-learn | Linear regression |
+| SQLite through SQLAlchemy Core | Local persistence (no ORM; STRICT tables, exact decimal text) |
 | NumPy and SciPy | Numerical dependencies of scikit-learn |
 | Ruff (development only) | Lint and format checks |
 | GitHub Actions | Continuous integration on Ubuntu, macOS and Windows |
 
-Pandas, Matplotlib, PySide6 and SQLite are candidates for future features.
+Pandas, Matplotlib and PySide6 are candidates for future features.
 
 ## Architecture and Object Model
 
@@ -140,8 +163,9 @@ src/sales_data_analyzer/
 ├── importing/     # Import contract, CSV adapter and row validation
 ├── analysis/      # Abstract Analysis, implementations and typed results
 ├── forecasting/   # Daily aggregation and scikit-learn forecasting adapter
-├── application/   # Level 2: session, company workspaces, use-case errors
-└── cli/           # Level 2: terminal menu, input parsing, output formatting
+├── application/   # Session, company workspaces, use-case errors, repository interface
+├── persistence/   # Level 3: SQLite repository (SQLAlchemy Core) and schema
+└── cli/           # Terminal menu, command line, input parsing, output formatting
 examples/
 ├── import_and_analyze.py
 └── analysis_and_forecast.py
@@ -153,7 +177,10 @@ The domain and descriptive analyses depend only on the standard library.
 The forecasting module imports scikit-learn when a forecast is requested.
 The `application` layer coordinates the existing classes into use cases that
 any interface can reuse (terminal now, GUI later) and never reads input or
-prints; `cli` is the only package that does. Dependencies point downwards only.
+prints; `cli` is the only package that does. Storage is reached through the
+`SalesRepository` interface owned by `application`; `persistence` implements it
+and the terminal entry point wires the two together. Dependencies point towards
+the domain.
 
 | Component | Responsibility |
 | --- | --- |
@@ -301,7 +328,7 @@ extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 - [x] Continuous integration and Ruff lint checks.
 - [ ] Implement descriptive temporal analyses and charts.
 - [ ] Add reporting and PDF export.
-- [ ] Add local persistence.
+- [x] Level 3 core: local SQLite persistence with exact amounts and atomic writes.
 - [ ] Build the desktop interface.
 
 ## Development Workflow
