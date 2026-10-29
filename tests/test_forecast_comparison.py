@@ -200,6 +200,50 @@ class WordingFlagTests(unittest.TestCase):
         self.assertTrue(all(p.revenue >= 0 for p in result.future))
         self.assertEqual(result.floored_future_days, tuple(p.day for p in result.future))
 
+    def test_floored_days_are_counted_once_and_scored_as_zero(self) -> None:
+        rows = series([10] * 5 + [0] * 7)
+        negative = Spy(value=-5.0)
+        result = compare_methods(rows, methods=(LastValueBaseline(), negative, Spy(value=-1.0)))
+        self.assertEqual(result.floored_evaluation_days, 7)  # two methods, same 7 days
+        spy = next(s for s in result.scores if s.method_key == "spy")
+        self.assertEqual(spy.mae, 0.0)  # floored to 0, which equals the actual revenue
+
+    def test_built_in_methods_only_receive_days_before_each_origin(self) -> None:
+        seen: list[tuple[str, date, date]] = []
+
+        class Recording(ForecastMethod):
+            """Delegates to a real method and records the last training day it got."""
+
+            def __init__(self, inner: ForecastMethod) -> None:
+                self.inner = inner
+                self.key, self.title, self.kind = inner.key, inner.title, inner.kind
+                self.min_training_days, self.explanation = inner.min_training_days, ""
+
+            def predict(self, training, days):
+                seen.append((self.key, training[-1].day, days[0]))
+                return self.inner.predict(training, days)
+
+        rows = weekly(63)
+        plain = compare_methods(rows)
+        recorded = compare_methods(rows, methods=tuple(Recording(m) for m in DEFAULT_METHODS))
+        self.assertEqual(
+            [(s.method_key, s.mae) for s in plain.scores],
+            [(s.method_key, s.mae) for s in recorded.scores],
+        )
+        evaluation = [(key, last, first) for key, last, first in seen if first in plain.origins]
+        self.assertEqual(len(evaluation), 5 * 4)
+        for key, last, first in evaluation:
+            self.assertEqual(last, first - timedelta(days=1), key)
+
+    def test_weak_evidence_wording_hides_beat_claims(self) -> None:
+        from sales_data_analyzer.cli.formatting import format_comparison
+
+        result = compare_methods(weekly(21))
+        self.assertTrue(result.weak_evidence)
+        text = "\n".join(format_comparison(result, "scope"))
+        self.assertNotIn("beat", text)
+        self.assertNotIn("clear difference", text)
+
     def test_future_estimates_come_from_a_refit_on_the_whole_history(self) -> None:
         rows = series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 50])
         result = compare_methods(rows, horizon=1, methods=(LastValueBaseline(),))

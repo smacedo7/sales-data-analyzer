@@ -2,6 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -93,6 +94,32 @@ class SaveChartsTests(unittest.TestCase):
             save_charts(INPUTS, self.folder.parent / "file" / "sub", replace=lambda path: True)
         self.folder.mkdir()
         with mock.patch("os.replace", side_effect=PermissionError("denied")):
+            with self.assertRaises(ChartWriteError):
+                save_charts(INPUTS, self.folder, replace=lambda path: True)
+        self.assertEqual(list(self.folder.iterdir()), [])
+
+    def test_a_failure_on_a_later_file_leaves_no_new_file(self) -> None:
+        self.folder.mkdir()
+        real_replace = os.replace
+        calls = []
+
+        def flaky(source, target):
+            calls.append(target)
+            if len(calls) == 1:
+                return real_replace(source, target)
+            raise PermissionError("denied")
+
+        with mock.patch("os.replace", side_effect=flaky):
+            with self.assertRaises(ChartWriteError):
+                save_charts(INPUTS, self.folder, replace=lambda path: True)
+        # All three were rendered before any move; only the first move happened.
+        self.assertEqual([p.name for p in self.folder.iterdir()], [DAILY_FILE])
+        self.assertEqual(len(calls), 2)
+
+    def test_rendering_failure_creates_no_file(self) -> None:
+        with mock.patch(
+            "sales_data_analyzer.charts.images._products_chart", side_effect=OSError("disk full")
+        ):
             with self.assertRaises(ChartWriteError):
                 save_charts(INPUTS, self.folder, replace=lambda path: True)
         self.assertEqual(list(self.folder.iterdir()), [])

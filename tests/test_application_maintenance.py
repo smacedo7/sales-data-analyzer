@@ -142,6 +142,42 @@ class EditProductTests(MaintenanceTestCase):
         self.assertEqual(self.acme.find_product("003").name, "Clip")
 
 
+class OtherCopyTests(MaintenanceTestCase):
+    """Changes made by another program copy are refused by the database, not merged."""
+
+    def test_rename_colliding_with_a_company_created_elsewhere(self) -> None:
+        other = self.reopened()
+        other.create_company("Beta", "Food")
+        with self.assertRaises(ConcurrentChangeError):
+            self.session.update_company("BETA", None)
+        self.assertEqual(self.acme.company.name, "Acme")
+
+    def test_company_row_deleted_elsewhere(self) -> None:
+        db = raw_connection(self.path)
+        db.execute("DELETE FROM sale_item")
+        db.execute("DELETE FROM sale")
+        db.execute("DELETE FROM product")
+        db.execute("DELETE FROM company")
+        db.close()
+        with self.assertRaises(ConcurrentChangeError):
+            self.session.update_company(None, "Food")
+        self.assertEqual(self.acme.company.sector, "Retail")
+
+    def test_product_sold_elsewhere_cannot_be_deleted(self) -> None:
+        other = self.reopened().workspaces[0]
+        other.record_sale("S9", datetime(2026, 1, 3, 10), [item("003")])
+        with self.assertRaises(ConcurrentChangeError):
+            self.acme.delete_product("003")
+        self.assertIsNotNone(self.acme.find_product("003"))
+        self.assertEqual(row_counts(self.path)["product"], 3)
+
+    def test_case_only_rename_survives_reopen_and_keeps_uniqueness(self) -> None:
+        self.session.update_company("ACME", None)
+        session = self.reopened()
+        with self.assertRaises(DuplicateCompanyError):
+            session.create_company(" acme ", "Food")
+
+
 class DeleteProductTests(MaintenanceTestCase):
     def test_unsold_product_is_deleted_from_memory_and_database(self) -> None:
         self.acme.delete_product("003")

@@ -63,7 +63,9 @@ class ComparisonResult:
     """Evaluation table, flags for honest wording and the chosen method's estimates.
 
     relative_mae is the MAE divided by the last-value baseline's MAE (None when that
-    is zero). `chosen_key` is the method behind `future`: the one requested, else the
+    is zero). The beat/clear flags are computed even with weak evidence; callers
+    should word them only when `weak_evidence` is False. floored_evaluation_days
+    counts distinct evaluated days on which any method's estimate was floored. `chosen_key` is the method behind `future`: the one requested, else the
     lowest-error one, else the last-value baseline.
     """
 

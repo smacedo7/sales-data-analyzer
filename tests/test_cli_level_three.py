@@ -3,6 +3,7 @@
 import contextlib
 from datetime import datetime, timedelta
 import io
+import os
 from pathlib import Path
 import sqlite3
 import unittest
@@ -419,6 +420,16 @@ class ChartMenuTests(DatabaseMenuTestCase):
         self.assertIn("Replace daily_revenue.png? [y/N] ", script.output)
         self.assertEqual(script.output.count(f"Saved: {folder / 'monthly_revenue.png'}"), 2)
         self.assertEqual(len(list(folder.iterdir())), 3)
+
+    def test_blank_folder_means_reports_in_the_working_directory(self) -> None:
+        work = self.path.parent / "work"
+        work.mkdir()
+        previous = os.getcwd()
+        os.chdir(work)
+        self.addCleanup(os.chdir, previous)
+        script = self.menu(["1", "Acme", "Retail", "7", VALID, "22", "", "0"])
+        self.assertIn(f"Saved: {Path('reports') / 'monthly_revenue.png'}", script.output)
+        self.assertEqual(len(list((work / "reports").iterdir())), 3)
 
     def test_unwritable_folder(self) -> None:
         blocker = self.path.parent / "blocker"

@@ -123,8 +123,10 @@ def save_charts(
     """Write the daily, monthly and top-product charts into folder; return written files.
 
     A chart without data is not written. For an existing file, replace(path) decides;
-    a False answer keeps the file. Raise ChartWriteError when the folder cannot be
-    created or written; temporary files are removed in that case.
+    a False answer keeps the file. All charts are rendered to temporary files first
+    and only then moved into place, so a rendering failure leaves no new file (a
+    folder that fails between two moves keeps the files already moved). Raise ChartWriteError when the folder cannot be created or written;
+    temporary files are always removed.
     """
     folder = Path(folder)
     try:
@@ -138,29 +140,32 @@ def save_charts(
         (MONTHLY_FILE, bool(inputs.monthly), _monthly_chart),
         (PRODUCTS_FILE, bool(inputs.top_products), _products_chart),
     )
-    written: list[Path] = []
-    for name, has_data, draw in plans:
-        target = folder / name
-        if not has_data or (target.exists() and not replace(target)):
-            continue
-        _write(draw(inputs), target)
-        written.append(target)
-    return tuple(written)
-
-
-def _write(figure, target: Path) -> None:
-    """Save figure as PNG next to target, then move it into place."""
+    targets = [
+        (folder / name, draw)
+        for name, has_data, draw in plans
+        if has_data and (not (folder / name).exists() or replace(folder / name))
+    ]
+    staged: list[tuple[str, Path]] = []
     try:
-        handle, temporary = tempfile.mkstemp(prefix=".chart-", suffix=".png", dir=target.parent)
+        for target, draw in targets:  # render everything before touching any target
+            staged.append((_render(draw(inputs), folder), target))
+        for temporary, target in staged:
+            os.replace(temporary, target)
     except OSError:
         raise ChartWriteError("the folder cannot be written") from None
+    finally:
+        for temporary, _ in staged:
+            Path(temporary).unlink(missing_ok=True)
+    return tuple(target for _, target in staged)
+
+
+def _render(figure, folder: Path) -> str:
+    """Save figure as PNG into a new temporary file in folder and return its path."""
+    handle, temporary = tempfile.mkstemp(prefix=".chart-", suffix=".png", dir=folder)
     try:
         with os.fdopen(handle, "wb") as stream:
             figure.savefig(stream, format="png", facecolor=_SURFACE, bbox_inches="tight")
-        os.replace(temporary, target)
-    except OSError:
-        Path(temporary).unlink(missing_ok=True)
-        raise ChartWriteError("the folder cannot be written") from None
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
         raise
+    return temporary

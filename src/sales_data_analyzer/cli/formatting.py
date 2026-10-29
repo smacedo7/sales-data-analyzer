@@ -449,7 +449,7 @@ def format_comparison(result: ComparisonResult, scope: str) -> list[str]:
     else:
         title = next(s.title for s in result.scores if s.method_key == result.lowest_error_key)
         lines.append(f"Lowest error in this evaluation: {title}.")
-    if any(s.kind == "model" for s in result.scores):
+    if not result.weak_evidence and any(s.kind == "model" for s in result.scores):
         if not result.model_beats_baselines:
             lines.append("No model beat the best baseline in this evaluation.")
         if not result.clear_difference:
