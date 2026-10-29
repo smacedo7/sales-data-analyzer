@@ -84,9 +84,7 @@ class CompanyWorkspace:
         self._sales = SalesDataset(company)
 
     @classmethod
-    def from_stored(
-        cls, stored: StoredCompany, repository: SalesRepository
-    ) -> "CompanyWorkspace":
+    def from_stored(cls, stored: StoredCompany, repository: SalesRepository) -> "CompanyWorkspace":
         """Restore a workspace loaded by a repository, sharing its domain objects."""
         if not isinstance(stored, StoredCompany):
             raise TypeError("stored must be a StoredCompany")
