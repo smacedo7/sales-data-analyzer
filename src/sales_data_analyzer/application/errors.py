@@ -103,3 +103,48 @@ class InsufficientHistoryError(ApplicationError):
         super().__init__(
             f"{available_days} day(s) of history available, at least {required_days} needed"
         )
+
+
+class PersistenceError(ApplicationError):
+    """Raised when a database write failed and was rolled back; nothing was changed."""
+
+    def __init__(self, message: str = "the database could not be updated") -> None:
+        super().__init__(message)
+
+
+class ConcurrentChangeError(PersistenceError):
+    """Raised when stored data no longer matches the session, e.g. another running copy."""
+
+    def __init__(self) -> None:
+        super().__init__("the data was changed by another copy of the program; restart it")
+
+
+class StorageLimitError(ApplicationError):
+    """Raised before writing when a quantity exceeds the storable integer range."""
+
+    def __init__(self) -> None:
+        super().__init__("a quantity is larger than the database can store")
+
+
+class ProductNotFoundError(ApplicationError):
+    """Raised when an edited or deleted product ID is not in the catalog."""
+
+    def __init__(self, product_id: str) -> None:
+        self.product_id = product_id
+        super().__init__("the product ID is not in the catalog")
+
+
+class ProductInUseError(ApplicationError):
+    """Raised when deleting a product that sales still reference."""
+
+    def __init__(self, sale_count: int) -> None:
+        self.sale_count = sale_count
+        super().__init__(f"this product appears in {sale_count} sale(s)")
+
+
+class SaleNotFoundError(ApplicationError):
+    """Raised when a deleted or requested sale ID does not exist in the company."""
+
+    def __init__(self, sale_id: str) -> None:
+        self.sale_id = sale_id
+        super().__init__("the sale ID is not in this company")
