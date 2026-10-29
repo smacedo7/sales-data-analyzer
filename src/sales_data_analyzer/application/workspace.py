@@ -1,8 +1,9 @@
 """One company's catalog and sales, changed only through all-or-nothing operations.
 
-Every operation validates first, builds candidate collections, and replaces the
-workspace's references only after the domain accepted everything. A refused
-operation therefore leaves the workspace exactly as it was.
+Every operation validates first, builds candidate collections, writes them to the
+repository (when there is one) in one transaction, and replaces the workspace's
+references only after that write succeeded. A refused or failed operation therefore
+leaves the workspace, and the stored data, exactly as they were.
 """
 
 from collections.abc import Iterable, Sequence
@@ -22,9 +23,11 @@ from .errors import (
     DuplicateProductError,
     DuplicateSaleError,
     EmptySaleError,
+    StorageLimitError,
     TimestampAwarenessError,
     UnknownProductError,
 )
+from .repository import MAX_STORED_INTEGER, SalesRepository, StoredCompany
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,12 @@ def _is_aware(sale: Sale) -> bool:
     return sale.date_time.utcoffset() is not None
 
 
+def _require_storable(sales: Iterable[Sale]) -> None:
+    """Raise StorageLimitError when an item quantity exceeds the stored integer range."""
+    if any(item.quantity > MAX_STORED_INTEGER for sale in sales for item in sale.items):
+        raise StorageLimitError()
+
+
 class CompanyWorkspace:
     """Everything recorded for one company during the session.
 
@@ -59,13 +68,32 @@ class CompanyWorkspace:
     both are company-scoped strings that keep leading zeros.
     """
 
-    def __init__(self, company: Company) -> None:
-        """Create an empty workspace for an existing Company."""
+    def __init__(self, company: Company, repository: SalesRepository | None = None) -> None:
+        """Create an empty workspace for an existing Company.
+
+        With a repository, every change is stored before it becomes visible; without
+        one the workspace lives in memory only (level 2 behavior).
+        """
         if not isinstance(company, Company):
             raise TypeError("company must be a Company")
+        if repository is not None and not isinstance(repository, SalesRepository):
+            raise TypeError("repository must be a SalesRepository")
         self._company = company
+        self._repository = repository
         self._catalog: dict[str, Product] = {}
         self._sales = SalesDataset(company)
+
+    @classmethod
+    def from_stored(
+        cls, stored: StoredCompany, repository: SalesRepository
+    ) -> "CompanyWorkspace":
+        """Restore a workspace loaded by a repository, sharing its domain objects."""
+        if not isinstance(stored, StoredCompany):
+            raise TypeError("stored must be a StoredCompany")
+        workspace = cls(stored.company, repository)
+        workspace._catalog = {product.id: product for product in stored.products}
+        workspace._sales = stored.sales
+        return workspace
 
     @property
     def company(self) -> Company:
@@ -88,11 +116,14 @@ class CompanyWorkspace:
         """Add a product to the catalog and return it.
 
         Raise TypeError/ValueError for invalid values (domain validation) and
-        DuplicateProductError when the trimmed ID already exists.
+        DuplicateProductError when the trimmed ID already exists. With a repository,
+        storage failures raise PersistenceError and the catalog is unchanged.
         """
         product = Product(product_id, self._company, name, category)
         if product.id in self._catalog:
             raise DuplicateProductError(product.id)
+        if self._repository is not None:
+            self._repository.add_product(self._company, product)
         self._catalog[product.id] = product
         return product
 
@@ -120,7 +151,8 @@ class CompanyWorkspace:
         Offsets are normalized to UTC, as imports do. Item values are validated
         by the domain (TypeError/ValueError); items that are not an iterable of
         ItemInput raise TypeError. Prices and costs are stored
-        exactly as given and never derived from the catalog.
+        exactly as given and never derived from the catalog. With a repository,
+        StorageLimitError and PersistenceError leave everything unchanged.
         """
         if self.has_sale(sale_id):
             raise DuplicateSaleError((sale_id.strip(),))
@@ -154,6 +186,9 @@ class CompanyWorkspace:
             sale.add_item(product, item.quantity, item.unit_price, item.unit_cost)
         candidate = self._copy_sales()
         candidate.add_sale(sale)
+        if self._repository is not None:
+            _require_storable((sale,))
+            self._repository.add_sales(self._company, (), (sale,))
         self._sales = candidate
         return sale
 
@@ -168,7 +203,9 @@ class CompanyWorkspace:
         from the catalog raises CatalogConflictError; mixing timestamps with and
         without offsets raises TimestampAwarenessError. Identical catalog
         products are reused; new products join the catalog. Item quantities,
-        prices and costs are kept exactly as imported.
+        prices and costs are kept exactly as imported. With a repository, the
+        products, sales and items are stored in one transaction before they
+        become visible (StorageLimitError/PersistenceError change nothing).
         """
         if importer is None:
             importer = CSVImporter()
@@ -205,6 +242,7 @@ class CompanyWorkspace:
             catalog.setdefault(product_id, product)
 
         candidate = self._copy_sales()
+        rebuilt_sales: list[Sale] = []
         items_added = 0
         for sale in imported.sales:
             rebuilt = Sale(sale.id, self._company, sale.date_time)
@@ -214,7 +252,12 @@ class CompanyWorkspace:
                 )
                 items_added += 1
             candidate.add_sale(rebuilt)
+            rebuilt_sales.append(rebuilt)
 
+        if self._repository is not None:
+            _require_storable(rebuilt_sales)
+            new_products = [p for key, p in catalog.items() if key not in self._catalog]
+            self._repository.add_sales(self._company, new_products, rebuilt_sales)
         self._catalog = catalog
         self._sales = candidate
         return ImportSummary(

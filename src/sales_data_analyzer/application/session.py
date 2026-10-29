@@ -1,4 +1,4 @@
-"""In-memory session state shared by every user interface."""
+"""Session state shared by every user interface, optionally backed by a repository."""
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
@@ -17,6 +17,7 @@ from .errors import (
     NoCompanySelectedError,
     NoSalesInSelectionError,
 )
+from .repository import SalesRepository
 from .workspace import CompanyWorkspace
 
 MIN_TRAINING_DAYS = 5
@@ -58,13 +59,38 @@ class Selection:
 
 
 class SalesSession:
-    """Companies and selection for one program run; nothing is persisted."""
+    """Companies and selection for one program run.
 
-    def __init__(self) -> None:
+    Without a repository nothing is persisted (level 2). With one, companies and
+    their data are stored as they change; the selection is never stored.
+    """
+
+    def __init__(self, repository: SalesRepository | None = None) -> None:
         """Start an empty session with no selected company."""
+        if repository is not None and not isinstance(repository, SalesRepository):
+            raise TypeError("repository must be a SalesRepository")
+        self._repository = repository
         self._workspaces: list[CompanyWorkspace] = []
         self._current: CompanyWorkspace | None = None
         self._selection = Selection()
+
+    @classmethod
+    def open(cls, repository: SalesRepository) -> "SalesSession":
+        """Return a session holding every company stored in repository, none selected.
+
+        Errors raised by the repository's load (for example invalid stored rows)
+        propagate unchanged.
+        """
+        session = cls(repository)
+        session._workspaces = [
+            CompanyWorkspace.from_stored(stored, repository) for stored in repository.load()
+        ]
+        return session
+
+    @property
+    def repository(self) -> SalesRepository | None:
+        """Return the repository storing this session's data, or None in memory mode."""
+        return self._repository
 
     @property
     def workspaces(self) -> tuple[CompanyWorkspace, ...]:
@@ -93,12 +119,15 @@ class SalesSession:
         Names are unique ignoring case and surrounding spaces. Raise
         DuplicateCompanyError for a used name and the Company validation errors
         (TypeError/ValueError) for invalid values; the session is unchanged then.
+        With a repository the company is stored first (PersistenceError on failure).
         """
         company = Company(name, sector)
         key = company.name.casefold()
         if any(w.company.name.casefold() == key for w in self._workspaces):
             raise DuplicateCompanyError()
-        workspace = CompanyWorkspace(company)
+        workspace = CompanyWorkspace(company, self._repository)
+        if self._repository is not None:
+            self._repository.add_company(company)
         self._workspaces.append(workspace)
         self._select(workspace)
         return workspace

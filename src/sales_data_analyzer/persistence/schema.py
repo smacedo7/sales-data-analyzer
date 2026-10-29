@@ -15,9 +15,6 @@ SCHEMA_VERSION = 1
 APPLICATION_ID = 0x53414441
 """Value of `PRAGMA application_id` (ASCII "SADA") identifying our database files."""
 
-MAX_INTEGER = 2**63 - 1
-"""Largest value an SQLite INTEGER column can store."""
-
 
 def _not_blank(column: str) -> sa.CheckConstraint:
     """Require a non-empty value after trimming spaces."""

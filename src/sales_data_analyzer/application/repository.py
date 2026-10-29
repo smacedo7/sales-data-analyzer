@@ -13,6 +13,9 @@ from sales_data_analyzer.domain.product import Product
 from sales_data_analyzer.domain.sale import Sale
 from sales_data_analyzer.domain.sales_dataset import SalesDataset
 
+MAX_STORED_INTEGER = 2**63 - 1
+"""Largest item quantity a repository must store (the SQLite INTEGER range)."""
+
 
 @dataclass(frozen=True)
 class StoredCompany:
