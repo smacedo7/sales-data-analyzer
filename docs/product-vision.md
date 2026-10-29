@@ -12,7 +12,7 @@ is going and in which order.
 | CSV import with atomic validation | Implemented | `importing/__init__.py`, `docs/csv-import.md` |
 | Financial and product analyses (Decimal) | Implemented | `analysis/__init__.py` |
 | Daily revenue forecast (linear trend + naive baseline, MAE/RMSE) | Implemented | `forecasting/__init__.py` |
-| Automated tests | 313 `unittest` tests passing on the level 3 branch (42 at level 1, 144 at level 2) | `uv run python -m unittest discover -s tests` |
+| Automated tests | 323 `unittest` tests passing on the level 3 branch (42 at level 1, 144 at level 2) | `uv run python -m unittest discover -s tests` |
 | Executable examples | All three run with the documented outputs | `examples/` |
 | UML of implemented model | Four-page draw.io + SVG previews | `docs/diagrams/level-one*` |
 | Program entry point | Level 2 terminal menu (`uv run sales-data-analyzer`) | `cli/`, `application/` (on `dev`) |
