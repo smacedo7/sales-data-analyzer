@@ -14,7 +14,9 @@ from sales_data_analyzer.application import (
     DuplicateSaleError,
     ItemInput,
     NoSalesInSelectionError,
+    PersistenceError,
     SalesSession,
+    StorageLimitError,
 )
 from sales_data_analyzer.importing import ImportValidationError
 
@@ -44,6 +46,7 @@ from .parsing import (
 )
 
 DATA_NOTICE = "Data is kept in memory only and is lost when you exit."
+SAVED_NOTICE = "Data is saved in {location}."
 NEEDS_COMPANY = "Not done: create or select a company first."
 MAX_HORIZON = 365
 DEFAULT_HORIZON = 7
@@ -94,15 +97,27 @@ class TerminalMenu:
 
     # -- loop -----------------------------------------------------------------
 
+    @property
+    def _location(self) -> str | None:
+        """Return where the session's data is stored, or None in memory mode."""
+        repository = self.session.repository
+        return None if repository is None else repository.location
+
     def run(self) -> int:
-        """Run until the user confirms exit or input ends; return exit status 0."""
-        self._say("Sales Data Analyzer - level 2 (terminal)")
-        self._say(DATA_NOTICE)
+        """Run until the user exits or input ends; return exit status 0.
+
+        In memory mode exit asks for confirmation because data would be lost; with
+        a database every change is already saved, so exit is immediate.
+        """
+        self._say_start()
         try:
             while True:
                 self._show_menu()
                 choice = self._input("Choose an option: ").strip()
                 if choice == "0":
+                    if self._location is not None:
+                        self._say(SAVED_NOTICE.format(location=self._location))
+                        return 0
                     if self._confirm_exit():
                         return 0
                     continue
@@ -113,8 +128,24 @@ class TerminalMenu:
                 self._dispatch(option)
         except EOFError, KeyboardInterrupt:
             self._say("")
-            self._say(DATA_NOTICE.replace("is lost when you exit", "was discarded"))
+            if self._location is not None:
+                self._say(SAVED_NOTICE.format(location=self._location))
+            else:
+                self._say(DATA_NOTICE.replace("is lost when you exit", "was discarded"))
             return 0
+
+    def _say_start(self) -> None:
+        """Print the title and where data lives (with stored counts for a database)."""
+        if self._location is None:
+            self._say("Sales Data Analyzer - level 2 (terminal)")
+            self._say(DATA_NOTICE)
+            return
+        workspaces = self.session.workspaces
+        products = sum(len(w.products) for w in workspaces)
+        sales = sum(len(w.sales.sales) for w in workspaces)
+        self._say("Sales Data Analyzer - level 3 (terminal)")
+        self._say(f"Database: {self._location}")
+        self._say(f"Loaded {len(workspaces)} company(ies), {products} product(s), {sales} sale(s).")
 
     def _show_menu(self) -> None:
         """Print the header with the current company and the numbered options."""
@@ -161,6 +192,8 @@ class TerminalMenu:
             raise
         except ImportValidationError as error:
             self._say(_describe_import_error(error))
+        except (PersistenceError, StorageLimitError) as error:
+            self._say(f"Not done: {error}. Nothing was changed.")
         except (ApplicationError, ValueError, TypeError) as error:
             self._say(f"Not done: {error}.")
         except Exception as error:  # the menu must survive any failure
