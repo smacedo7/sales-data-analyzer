@@ -380,5 +380,52 @@ class ForecastComparisonMenuTests(DatabaseMenuTestCase):
         )
 
 
+class ChartMenuTests(DatabaseMenuTestCase):
+    """Options 21-22: text bars in the terminal and PNG files."""
+
+    def test_text_charts(self) -> None:
+        script = self.menu(
+            ["1", "Acme", "Retail", "7", VALID, "21", "1", "21", "3", "21", "9", "2", "0"]
+        )
+        self.assertIn("2026-01 | " + "#" * 40 + " 45.40", script.output)
+        self.assertIn("007 Coffee, premium | " + "#" * 40 + " 40.40", script.output)
+        self.assertIn("008 Tea             | " + "#" * 5 + " " * 35 + " 5.00", script.output)
+        self.assertIn("Invalid value: expected a positive whole number up to 3.", script.output)
+        self.assertIn("Thu | " + "#" * 40 + " 40.40", script.output)
+
+    def test_text_charts_without_sales(self) -> None:
+        script = self.menu(["1", "Acme", "Retail", "21", "0"])
+        self.assertIn("No sales in the current selection.", script.output)
+
+    def test_save_images_and_replace_question(self) -> None:
+        folder = self.path.parent / "my reports"
+        lines = [
+            "1",
+            "Acme",
+            "Retail",
+            "7",
+            VALID,
+            "22",
+            str(folder),
+            "22",
+            str(folder),
+            "n",
+            "y",
+            "",
+        ]
+        script = self.menu(lines + ["0"])
+        self.assertTrue(any(line.startswith("Forecast not drawn: ") for line in script.output))
+        self.assertIn(f"Saved: {folder / 'daily_revenue.png'}", script.output)
+        self.assertIn("Replace daily_revenue.png? [y/N] ", script.output)
+        self.assertEqual(script.output.count(f"Saved: {folder / 'monthly_revenue.png'}"), 2)
+        self.assertEqual(len(list(folder.iterdir())), 3)
+
+    def test_unwritable_folder(self) -> None:
+        blocker = self.path.parent / "blocker"
+        blocker.write_text("x", encoding="utf-8")
+        script = self.menu(["1", "Acme", "Retail", "7", VALID, "22", str(blocker / "sub"), "0"])
+        self.assertIn("Not done: the folder cannot be written. No file was created.", script.output)
+
+
 if __name__ == "__main__":
     unittest.main()

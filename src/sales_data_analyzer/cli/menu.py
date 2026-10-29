@@ -7,6 +7,8 @@ drive the menu in tests exactly as a person would at the keyboard.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
+from pathlib import Path
 
 from sales_data_analyzer.application import (
     ApplicationError,
@@ -21,6 +23,8 @@ from sales_data_analyzer.application import (
     Selection,
     StorageLimitError,
 )
+from sales_data_analyzer.charts import bar_lines
+from sales_data_analyzer.exploration import WEEKDAY_NAMES
 from sales_data_analyzer.importing import ImportValidationError
 
 from .formatting import (
@@ -111,6 +115,8 @@ class TerminalMenu:
             _Option(18, "Sales over time", self._sales_over_time),
             _Option(19, "Compare periods", self._compare_periods),
             _Option(20, "Compare forecast methods", self._compare_forecasts),
+            _Option(21, "Text charts", self._text_charts),
+            _Option(22, "Save chart images", self._save_charts),
         )
 
     # -- loop -----------------------------------------------------------------
@@ -578,6 +584,84 @@ class TerminalMenu:
         for line in format_comparison_estimates(result):
             self._say(line)
 
+    # -- charts (level 3) -----------------------------------------------------------
+
+    def _top_products(self, limit: int = 10) -> list[tuple[str, Decimal]]:
+        """Return (ID and name, revenue) of the best-selling products in the selection."""
+        result = self.session.run_product_analysis()
+        names = {p.id: p.name for p in self.session.require_current().products}
+        rows = {row.product_id: row.revenue for row in result.products}
+        return [
+            (f"{key} {names.get(key, '?')}", rows[key]) for key in result.revenue_ranking[:limit]
+        ]
+
+    def _text_charts(self) -> None:
+        """Print one bar chart of the selection in the terminal."""
+        self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say("No sales in the current selection.")
+            return
+        choice = self._ask(
+            "Chart: 1 monthly revenue, 2 weekday profile, 3 top products: ",
+            lambda text: parse_positive_int(text, maximum=3),
+        )
+        scope = self._scope()
+        if choice == 1:
+            title = f"Monthly revenue - {scope}"
+            rows = [(r.label, r.revenue) for r in self.session.sales_over_time("month").rows]
+        elif choice == 2:
+            title = f"Average revenue per weekday (days with sales) - {scope}"
+            rows = [
+                (WEEKDAY_NAMES[p.weekday][:3], p.average_revenue or Decimal(0))
+                for p in self.session.weekday_profile()
+            ]
+        else:
+            title = f"Top products by revenue - {scope}"
+            rows = self._top_products()
+        self._say(title)
+        for line in bar_lines(rows, value_text=format_money):
+            self._say(line)
+
+    def _save_charts(self) -> None:
+        """Write PNG charts of the selection to a folder, asking before replacing files."""
+        from sales_data_analyzer.charts.images import ChartInputs, ChartWriteError, save_charts
+
+        workspace = self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say("No sales in the current selection.")
+            return
+        folder = self._ask("Folder (blank = reports): ", _parse_folder)
+        forecast: tuple = ()
+        forecast_title = None
+        try:
+            comparison = self.session.compare_forecasts()
+        except ValueError as error:
+            self._say(f"Forecast not drawn: {explain_forecast_error(error)}")
+        else:
+            forecast = tuple((p.day, p.revenue) for p in comparison.future)
+            forecast_title = comparison.chosen_title
+        inputs = ChartInputs(
+            title=f"{workspace.company.name} - {self.session.selection.describe()}",
+            daily=tuple((r.start, r.revenue) for r in self.session.sales_over_time("day").rows),
+            monthly=tuple((r.label, r.revenue) for r in self.session.sales_over_time("month").rows),
+            top_products=tuple(self._top_products()),
+            forecast=forecast,
+            forecast_title=forecast_title,
+        )
+
+        def replace(path: Path) -> bool:
+            return self._ask(f"Replace {path.name}? [y/N] ", parse_yes_no)
+
+        try:
+            written = save_charts(inputs, folder, replace=replace)
+        except ChartWriteError:
+            self._say("Not done: the folder cannot be written. No file was created.")
+            return
+        for path in written:
+            self._say(f"Saved: {path}")
+        if not written:
+            self._say("No file was written.")
+
     # -- prompt helpers ---------------------------------------------------------
 
     def _say(self, line: str) -> None:
@@ -602,6 +686,11 @@ def _parse_optional_text(text: str) -> str | None:
 def _in_use_message(sale_count: int) -> str:
     """Explain why a sold product cannot be deleted."""
     return f"Not done: this product appears in {plural(sale_count, 'sale')} and cannot be deleted."
+
+
+def _parse_folder(text: str) -> Path:
+    """Return the chart folder; blank means ./reports."""
+    return Path("reports") if not text.strip() else parse_path(text)
 
 
 def _parse_horizon(text: str) -> int:
