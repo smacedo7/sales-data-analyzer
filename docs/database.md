@@ -40,12 +40,18 @@ is marked with `PRAGMA application_id` (ASCII "SADA") and
   floating point (`0.1` came back as `0.10000000000000000555` in a check), so it
   is not used. Totals are never stored; analyses recompute them.
 - **History.** Items keep the price and cost recorded at sale time.
-- **All or nothing.** Each import, manual sale and catalog change is one
+- **All or nothing.** Each import, manual sale, edit and deletion is one
   `BEGIN IMMEDIATE` transaction. The session is updated only after the commit,
   so a failure leaves both the file and the program unchanged.
 - **Validated loading.** Rows are rebuilt through the domain constructors at
   start-up; invalid rows (for example edited by hand) stop the start-up with a
   table name and count.
+- **Safe deletions.** A product used by any sale item cannot be deleted (the
+  program refuses first and the schema's `RESTRICT` key backs it up). Deleting
+  a sale removes its items through `ON DELETE CASCADE`. Companies are not deleted.
+- **Edits keep history.** Renaming a product changes how it is shown everywhere,
+  while item prices and costs stay as recorded. An edit or deletion that finds
+  no matching row (changed by another copy) is rolled back and reported.
 - **Foreign keys on.** Every connection enables and checks
   `PRAGMA foreign_keys`.
 

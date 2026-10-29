@@ -4,7 +4,7 @@ Companion to the project constitution, which holds
 the binding principles. This page records what exists today, where the product
 is going and in which order.
 
-## Current state (level 1 verified 2026-10-11 on `main` at `e80c49a`; level 2 on `dev`)
+## Current state (level 1 verified 2026-10-11 on `main` at `e80c49a`; level 2 on `main`; level 3 proposed to `dev`)
 
 | Area | Status | Evidence |
 | --- | --- | --- |
@@ -12,12 +12,16 @@ is going and in which order.
 | CSV import with atomic validation | Implemented | `importing/__init__.py`, `docs/csv-import.md` |
 | Financial and product analyses (Decimal) | Implemented | `analysis/__init__.py` |
 | Daily revenue forecast (linear trend + naive baseline, MAE/RMSE) | Implemented | `forecasting/__init__.py` |
-| Automated tests | 144 `unittest` tests passing on `dev` (42 at level 1) | `uv run python -m unittest discover -s tests` |
-| Executable examples | Both run with the documented outputs | `examples/` |
+| Automated tests | 313 `unittest` tests passing on the level 3 branch (42 at level 1, 144 at level 2) | `uv run python -m unittest discover -s tests` |
+| Executable examples | All three run with the documented outputs | `examples/` |
 | UML of implemented model | Four-page draw.io + SVG previews | `docs/diagrams/level-one*` |
 | Program entry point | Level 2 terminal menu (`uv run sales-data-analyzer`) | `cli/`, `application/` (on `dev`) |
 | Product catalog per company | Implemented in `CompanyWorkspace` (in memory) | `application/workspace.py` (on `dev`) |
-| Persistence, charts, reports, GUI | Not started | — |
+| SQLite persistence and data maintenance | Implemented (level 3) | `persistence/`, `docs/database.md` |
+| Temporal exploration and period comparison | Implemented with pandas, exact totals | `exploration/` |
+| Forecast method comparison against baselines | Implemented (level 3) | `forecasting/methods.py`, `forecasting/comparison.py`, `docs/forecast-comparison.md` |
+| Charts | Text bars and Matplotlib PNG files | `charts/` |
+| PDF reports, GUI | Not started | — |
 | CI and linter | GitHub Actions (3 OSes) and Ruff | `.github/workflows/tests.yml`, `pyproject.toml` |
 
 ## Final vision
@@ -49,9 +53,8 @@ NLP, cloud services) are not added unless a concrete requirement appears.
 | --- | --- | --- |
 | 1 | Object model, CSV import, analyses, basic forecast, UML | Merged into `main` (PR #11). Video and submission are student actions. |
 | 2 | Functional terminal menu exposing the existing operations, in memory | `specs/001-terminal-menu/` tasks complete and merged |
-| 3 | Persistence in SQLite (companies, products, sales survive restarts) | To be specified after level 2 |
+| 3 | Persistence in SQLite, maintenance, exploration, forecast comparison, charts | Feature branch proposed to `dev` |
 | 4 | PySide6 graphical interface over the same application services | To be specified after level 3 |
 
-Temporal analyses, charts, PDF reports and improved ML evaluation are
-scheduled into levels 3–4 (or between them) when each is specified; they are
-not part of level 2.
+Temporal analyses, charts and the improved forecast evaluation were delivered
+with level 3. PDF reports are scheduled for level 4 or later.
