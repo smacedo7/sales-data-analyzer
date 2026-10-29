@@ -256,11 +256,48 @@ class SQLiteSalesRepository(SalesRepository):
             (row_id,) = result.inserted_primary_key
         self._company_ids[company] = row_id
 
+    def update_company(self, company: Company, name: str, sector: str) -> None:
+        """Rewrite the name, its case-insensitive key and the sector of a registered company."""
+        company_id = self._company_id(company)
+        with self._transaction() as connection:
+            result = connection.execute(
+                schema.company.update()
+                .where(schema.company.c.id == company_id)
+                .values(name=name, name_key=name.casefold(), sector=sector)
+            )
+            _require_one_row(result)
+
     def add_product(self, company: Company, product: Product) -> None:
         """Insert one catalog product of a registered company."""
         company_id = self._company_id(company)
         with self._transaction() as connection:
             connection.execute(schema.product.insert(), [_product_row(company_id, product)])
+
+    def update_product(self, company: Company, product_id: str, name: str, category: str) -> None:
+        """Rewrite the name and category of one catalog product."""
+        company_id = self._company_id(company)
+        with self._transaction() as connection:
+            result = connection.execute(
+                schema.product.update()
+                .where(
+                    schema.product.c.company_id == company_id,
+                    schema.product.c.code == product_id,
+                )
+                .values(name=name, category=category)
+            )
+            _require_one_row(result)
+
+    def delete_product(self, company: Company, product_id: str) -> None:
+        """Delete one catalog product; the schema refuses it while items reference it."""
+        company_id = self._company_id(company)
+        with self._transaction() as connection:
+            result = connection.execute(
+                schema.product.delete().where(
+                    schema.product.c.company_id == company_id,
+                    schema.product.c.code == product_id,
+                )
+            )
+            _require_one_row(result)
 
     def add_sales(
         self, company: Company, new_products: Sequence[Product], sales: Sequence[Sale]
@@ -291,6 +328,17 @@ class SQLiteSalesRepository(SalesRepository):
                 )
                 (sale_id,) = result.inserted_primary_key
                 self._insert_items(connection, company_id, sale_id, sale, product_ids)
+
+    def delete_sale(self, company: Company, sale_id: str) -> None:
+        """Delete one sale; its items go with it (ON DELETE CASCADE)."""
+        company_id = self._company_id(company)
+        with self._transaction() as connection:
+            result = connection.execute(
+                schema.sale.delete().where(
+                    schema.sale.c.company_id == company_id, schema.sale.c.code == sale_id
+                )
+            )
+            _require_one_row(result)
 
     def _insert_items(
         self,
@@ -355,6 +403,16 @@ def _product_row(company_id: int, product: Product) -> dict[str, object]:
         "name": product.name,
         "category": product.category,
     }
+
+
+def _require_one_row(result: sa.CursorResult) -> None:
+    """Fail the transaction when an update or delete did not match exactly one row.
+
+    The session only edits rows it loaded, so a missing row means another running
+    copy changed the file.
+    """
+    if result.rowcount != 1:
+        raise ConcurrentChangeError()
 
 
 def _raise_if_invalid(table: str, count: int) -> None:

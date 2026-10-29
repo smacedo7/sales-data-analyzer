@@ -7,6 +7,7 @@ from typing import Literal
 from sales_data_analyzer.analysis import AnalysisResult, FinancialAnalysis, ProductAnalysis
 from sales_data_analyzer.domain.company import Company
 from sales_data_analyzer.domain.sales_dataset import SalesDataset
+from sales_data_analyzer.domain.validation import validate_non_empty_string
 from sales_data_analyzer.forecasting import ForecastResult, RevenueForecaster, daily_revenue
 
 from .errors import (
@@ -130,6 +131,29 @@ class SalesSession:
             self._repository.add_company(company)
         self._workspaces.append(workspace)
         self._select(workspace)
+        return workspace
+
+    def update_company(self, name: str | None, sector: str | None) -> CompanyWorkspace:
+        """Rename and/or change the sector of the selected company; None keeps a value.
+
+        Both values are validated before anything is written (TypeError/ValueError).
+        Raise DuplicateCompanyError when another company already uses the name
+        (ignoring case and surrounding spaces). With a repository the change is
+        stored first; on PersistenceError the company keeps its old values.
+        """
+        workspace = self.require_current()
+        company = workspace.company
+        new_name = validate_non_empty_string(company.name if name is None else name, "name")
+        new_sector = validate_non_empty_string(
+            company.sector if sector is None else sector, "sector"
+        )
+        key = new_name.casefold()
+        if any(w is not workspace and w.company.name.casefold() == key for w in self._workspaces):
+            raise DuplicateCompanyError()
+        if self._repository is not None:
+            self._repository.update_company(company, new_name, new_sector)
+        company.name = new_name
+        company.sector = new_sector
         return workspace
 
     def select_company(self, index: int) -> CompanyWorkspace:

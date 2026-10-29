@@ -124,3 +124,27 @@ class StorageLimitError(ApplicationError):
 
     def __init__(self) -> None:
         super().__init__("a quantity is larger than the database can store")
+
+
+class ProductNotFoundError(ApplicationError):
+    """Raised when an edited or deleted product ID is not in the catalog."""
+
+    def __init__(self, product_id: str) -> None:
+        self.product_id = product_id
+        super().__init__("the product ID is not in the catalog")
+
+
+class ProductInUseError(ApplicationError):
+    """Raised when deleting a product that sales still reference."""
+
+    def __init__(self, sale_count: int) -> None:
+        self.sale_count = sale_count
+        super().__init__(f"this product appears in {sale_count} sale(s)")
+
+
+class SaleNotFoundError(ApplicationError):
+    """Raised when a deleted or requested sale ID does not exist in the company."""
+
+    def __init__(self, sale_id: str) -> None:
+        self.sale_id = sale_id
+        super().__init__("the sale ID is not in this company")

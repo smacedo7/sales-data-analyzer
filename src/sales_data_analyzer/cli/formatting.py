@@ -11,6 +11,7 @@ from sales_data_analyzer.application.errors import (
 from sales_data_analyzer.application.session import MIN_TRAINING_DAYS
 from sales_data_analyzer.application.workspace import ImportSummary
 from sales_data_analyzer.domain.product import Product
+from sales_data_analyzer.domain.sale import Sale
 from sales_data_analyzer.forecasting import ForecastResult
 
 _CENT = Decimal("0.01")
@@ -130,6 +131,30 @@ def format_catalog(products: Sequence[Product]) -> list[str]:
     return [
         "  ".join(f"{cell:<{widths[i]}}" for i, cell in enumerate(row)).rstrip() for row in rows
     ]
+
+
+def format_sales(sales: Sequence[Sale]) -> list[str]:
+    """Return sales as an aligned table followed by their count."""
+    if not sales:
+        return ["No sales in the current selection."]
+    header = ("Sale ID", "Date and time", "Items", "Total")
+    rows = [
+        (
+            sale.id,
+            sale.date_time.isoformat(),
+            str(len(sale.items)),
+            format_money(sale.calculate_total()),
+        )
+        for sale in sales
+    ]
+    widths = [max(len(cells[i]) for cells in (header, *rows)) for i in range(len(header))]
+
+    def render(cells: tuple[str, ...]) -> str:
+        left = [f"{cells[i]:<{widths[i]}}" for i in (0, 1)]
+        right = [f"{cells[i]:>{widths[i]}}" for i in (2, 3)]
+        return "  ".join(left + right).rstrip()
+
+    return [render(header), *(render(cells) for cells in rows), plural(len(sales), "sale")]
 
 
 FORECAST_LIMITATIONS = (

@@ -166,5 +166,75 @@ class CommandLineTests(DatabaseMenuTestCase):
         self.assertIn("1 invalid row(s) in company", err)
 
 
+class MaintenanceMenuTests(DatabaseMenuTestCase):
+    """Options 13-17: edit, delete and list (contracts/terminal-menu.md)."""
+
+    IMPORTED = ["1", "Acme", "Retail", "7", VALID]
+
+    def test_edit_company_with_blank_keeps_sector_and_survives_restart(self) -> None:
+        script = self.menu(["1", "Acme", "Retail", "13", "Acme Ltda", "", "0"])
+        self.assertIn("New name (blank = keep): ", script.output)
+        self.assertIn("Company updated: Acme Ltda (Retail)", script.output)
+        second = self.menu(["2", "1", "0"])
+        self.assertIn("Selected: Acme Ltda", second.output)
+
+    def test_edit_company_refuses_a_used_name(self) -> None:
+        script = self.menu(["1", "Acme", "Retail", "1", "Beta", "Food", "13", " acme ", "", "0"])
+        self.assertIn("Not done: a company with this name already exists.", script.output)
+
+    def test_edit_product(self) -> None:
+        script = self.menu(self.IMPORTED + ["14", "007", "", "Coffee", "14", "999", "0"])
+        self.assertIn("New category (blank = keep): ", script.output)
+        self.assertIn("Product updated: 007 Coffee, premium (Coffee)", script.output)
+        self.assertIn("Product not found.", script.output)
+
+    def test_delete_product_refuses_sold_products_and_asks_before_deleting(self) -> None:
+        script = self.menu(
+            self.IMPORTED
+            + ["3", "009", "Mug", "Kitchen", "15", "007", "15", "009", "n", "15", "009", "y", "0"]
+        )
+        self.assertIn(
+            "Not done: this product appears in 1 sale and cannot be deleted.", script.output
+        )
+        self.assertIn("Delete product 009 Mug? [y/N] ", script.output)
+        self.assertIn("Nothing was deleted.", script.output)
+        self.assertIn("Product deleted: 009", script.output)
+        self.assertEqual(row_counts(self.path)["product"], 2)
+
+    def test_list_sales_follows_the_selection(self) -> None:
+        script = self.menu(
+            self.IMPORTED + ["16", "8", "2026-01-02", "2026-01-02", "16", "8", "2026-03-01",
+                             "2026-03-01", "16", "0"]
+        )  # fmt: skip
+        tables = [i for i, line in enumerate(script.output) if line.startswith("Sale ID")]
+        self.assertEqual(len(tables), 2)
+        first = script.output[tables[0] : tables[0] + 4]
+        self.assertEqual(
+            first,
+            [
+                "Sale ID  Date and time        Items  Total",
+                "001      2026-01-01T10:00:00      2  40.40",
+                "002      2026-01-02T10:00:00      1   5.00",
+                "2 sales",
+            ],
+        )
+        self.assertTrue(script.output[tables[1] + 1].startswith("002 "))
+        self.assertEqual(script.output[tables[1] + 2], "1 sale")
+        self.assertIn("No sales in the current selection.", script.output)
+
+    def test_delete_sale_confirms_with_items_and_total(self) -> None:
+        script = self.menu(self.IMPORTED + ["17", "S9", "17", "001", "", "17", "001", "y", "0"])
+        self.assertIn("Sale not found.", script.output)
+        self.assertIn("Delete sale 001 (2 items, total 40.40)? [y/N] ", script.output)
+        self.assertIn("Nothing was deleted.", script.output)
+        self.assertIn("Sale deleted: 001", script.output)
+        self.assertEqual(row_counts(self.path)["sale"], 1)
+        self.assertEqual(row_counts(self.path)["sale_item"], 1)
+
+    def test_options_need_a_company(self) -> None:
+        script = self.menu(["13", "16", "0"])
+        self.assertEqual(script.output.count("Not done: create or select a company first."), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

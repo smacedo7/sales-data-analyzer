@@ -23,6 +23,9 @@ from .errors import (
     DuplicateProductError,
     DuplicateSaleError,
     EmptySaleError,
+    ProductInUseError,
+    ProductNotFoundError,
+    SaleNotFoundError,
     StorageLimitError,
     TimestampAwarenessError,
     UnknownProductError,
@@ -131,14 +134,93 @@ class CompanyWorkspace:
             raise TypeError("product_id must be a string")
         return self._catalog.get(product_id.strip())
 
+    def update_product(self, product_id: str, name: str | None, category: str | None) -> Product:
+        """Change the name and/or category of a catalog product; None keeps a value.
+
+        Both values are validated before anything is written (TypeError/ValueError),
+        so a refused category never leaves a changed name behind. Raise
+        ProductNotFoundError for an unknown ID. Sale items share the product, so
+        analyses show the new name; stored prices and costs never change.
+        """
+        product = self._require_product(product_id)
+        edited = Product(
+            product.id,
+            self._company,
+            product.name if name is None else name,
+            product.category if category is None else category,
+        )
+        if self._repository is not None:
+            self._repository.update_product(self._company, product.id, edited.name, edited.category)
+        product.name = edited.name
+        product.category = edited.category
+        return product
+
+    def sales_with_product(self, product_id: str) -> int:
+        """Return how many sales contain the catalog product (ProductNotFoundError if unknown)."""
+        product = self._require_product(product_id)
+        return sum(1 for sale in self._sales.sales if any(i.product is product for i in sale.items))
+
+    def delete_product(self, product_id: str) -> None:
+        """Remove a product that no sale uses.
+
+        Raise ProductNotFoundError for an unknown ID and ProductInUseError (with the
+        sale count) when sales reference it; sold products are never deleted.
+        """
+        product = self._require_product(product_id)
+        in_use = self.sales_with_product(product.id)
+        if in_use:
+            raise ProductInUseError(in_use)
+        if self._repository is not None:
+            self._repository.delete_product(self._company, product.id)
+        catalog = dict(self._catalog)
+        del catalog[product.id]
+        self._catalog = catalog
+
+    def _require_product(self, product_id: str) -> Product:
+        """Return the catalog product with the trimmed ID or raise ProductNotFoundError."""
+        product = self.find_product(product_id)
+        if product is None:
+            raise ProductNotFoundError(product_id.strip())
+        return product
+
     # -- manual sales -------------------------------------------------------------
 
     def has_sale(self, sale_id: str) -> bool:
         """Return True when a sale with the trimmed ID already exists."""
+        return self.find_sale(sale_id) is not None
+
+    def find_sale(self, sale_id: str) -> Sale | None:
+        """Return the sale with the trimmed ID, or None."""
         if not isinstance(sale_id, str):
             raise TypeError("sale_id must be a string")
         key = sale_id.strip()
-        return any(sale.id == key for sale in self._sales.sales)
+        return next((sale for sale in self._sales.sales if sale.id == key), None)
+
+    def list_sales(self, sales: SalesDataset | None = None) -> tuple[Sale, ...]:
+        """Return sales in insertion order: all of them, or those of a selected dataset."""
+        if sales is None:
+            return self._sales.sales
+        if not isinstance(sales, SalesDataset) or sales.company is not self._company:
+            raise TypeError("sales must be a SalesDataset of this company")
+        return sales.sales
+
+    def delete_sale(self, sale_id: str) -> Sale:
+        """Remove a sale and its items, all or nothing, and return it.
+
+        Raise SaleNotFoundError for an unknown ID. With a repository, a storage
+        failure (PersistenceError) leaves the sales unchanged.
+        """
+        sale = self.find_sale(sale_id)
+        if sale is None:
+            raise SaleNotFoundError(sale_id.strip())
+        candidate = SalesDataset(self._company)
+        for kept in self._sales.sales:
+            if kept is not sale:
+                candidate.add_sale(kept)
+        if self._repository is not None:
+            self._repository.delete_sale(self._company, sale.id)
+        self._sales = candidate
+        return sale
 
     def record_sale(self, sale_id: str, date_time: datetime, items: Sequence[ItemInput]) -> Sale:
         """Store a new sale built from catalog products, all or nothing.

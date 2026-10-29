@@ -53,14 +53,30 @@ class SalesRepository(ABC):
         """Store a new company."""
 
     @abstractmethod
+    def update_company(self, company: Company, name: str, sector: str) -> None:
+        """Store new validated values for company; the Company itself is not changed."""
+
+    @abstractmethod
     def add_product(self, company: Company, product: Product) -> None:
         """Store a new catalog product of company."""
+
+    @abstractmethod
+    def update_product(self, company: Company, product_id: str, name: str, category: str) -> None:
+        """Store new validated name and category for a catalog product of company."""
+
+    @abstractmethod
+    def delete_product(self, company: Company, product_id: str) -> None:
+        """Remove a catalog product that no stored sale references."""
 
     @abstractmethod
     def add_sales(
         self, company: Company, new_products: Sequence[Product], sales: Sequence[Sale]
     ) -> None:
         """Store new catalog products and new sales with their items in one transaction."""
+
+    @abstractmethod
+    def delete_sale(self, company: Company, sale_id: str) -> None:
+        """Remove a stored sale of company together with its items."""
 
     @abstractmethod
     def close(self) -> None:

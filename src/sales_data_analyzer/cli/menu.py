@@ -15,6 +15,7 @@ from sales_data_analyzer.application import (
     ItemInput,
     NoSalesInSelectionError,
     PersistenceError,
+    ProductInUseError,
     SalesSession,
     StorageLimitError,
 )
@@ -29,6 +30,7 @@ from .formatting import (
     format_import_summary,
     format_money,
     format_products,
+    format_sales,
     format_scope,
     is_missing_days_error,
     plural,
@@ -93,6 +95,11 @@ class TerminalMenu:
             _Option(10, "Financial analysis", self._financial_analysis),
             _Option(11, "Product analysis", self._product_analysis),
             _Option(12, "Revenue forecast", self._forecast),
+            _Option(13, "Edit company", self._edit_company),
+            _Option(14, "Edit product", self._edit_product),
+            _Option(15, "Delete product", self._delete_product),
+            _Option(16, "List sales", self._list_sales),
+            _Option(17, "Delete sale", self._delete_sale),
         )
 
     # -- loop -----------------------------------------------------------------
@@ -385,6 +392,72 @@ class TerminalMenu:
         for line in format_forecast(result, scope):
             self._say(line)
 
+    # -- maintenance (level 3) ------------------------------------------------------
+
+    def _edit_company(self) -> None:
+        """Ask for a new name and sector (blank keeps each) and apply both together."""
+        self.session.require_current()
+        name = self._ask("New name (blank = keep): ", _parse_optional_text)
+        sector = self._ask("New sector (blank = keep): ", _parse_optional_text)
+        company = self.session.update_company(name, sector).company
+        self._say(f"Company updated: {company.name} ({company.sector})")
+
+    def _edit_product(self) -> None:
+        """Ask for a product and its new name and category (blank keeps each)."""
+        workspace = self.session.require_current()
+        product = workspace.find_product(self._ask("Product ID: ", parse_text))
+        if product is None:
+            self._say("Product not found.")
+            return
+        name = self._ask("New name (blank = keep): ", _parse_optional_text)
+        category = self._ask("New category (blank = keep): ", _parse_optional_text)
+        product = workspace.update_product(product.id, name, category)
+        self._say(f"Product updated: {product.id} {product.name} ({product.category})")
+
+    def _delete_product(self) -> None:
+        """Delete an unsold product after confirmation."""
+        workspace = self.session.require_current()
+        product = workspace.find_product(self._ask("Product ID: ", parse_text))
+        if product is None:
+            self._say("Product not found.")
+            return
+        in_use = workspace.sales_with_product(product.id)
+        if in_use:
+            self._say(_in_use_message(in_use))
+            return
+        if not self._ask(f"Delete product {product.id} {product.name}? [y/N] ", parse_yes_no):
+            self._say("Nothing was deleted.")
+            return
+        try:
+            workspace.delete_product(product.id)
+        except ProductInUseError as error:
+            self._say(_in_use_message(error.sale_count))
+            return
+        self._say(f"Product deleted: {product.id}")
+
+    def _list_sales(self) -> None:
+        """Print the sales of the active selection."""
+        workspace = self.session.require_current()
+        for line in format_sales(workspace.list_sales(self.session.selected_sales())):
+            self._say(line)
+
+    def _delete_sale(self) -> None:
+        """Delete a sale and its items after confirmation."""
+        workspace = self.session.require_current()
+        sale = workspace.find_sale(self._ask("Sale ID: ", parse_text))
+        if sale is None:
+            self._say("Sale not found.")
+            return
+        question = (
+            f"Delete sale {sale.id} ({plural(len(sale.items), 'item')}, "
+            f"total {format_money(sale.calculate_total())})? [y/N] "
+        )
+        if not self._ask(question, parse_yes_no):
+            self._say("Nothing was deleted.")
+            return
+        workspace.delete_sale(sale.id)
+        self._say(f"Sale deleted: {sale.id}")
+
     # -- prompt helpers ---------------------------------------------------------
 
     def _say(self, line: str) -> None:
@@ -398,6 +471,17 @@ class TerminalMenu:
                 return parser(self._input(prompt))
             except InputError as error:
                 self._say(f"Invalid value: {error}.")
+
+
+def _parse_optional_text(text: str) -> str | None:
+    """Return trimmed text, or None when blank (keep the current value)."""
+    value = text.strip()
+    return value or None
+
+
+def _in_use_message(sale_count: int) -> str:
+    """Explain why a sold product cannot be deleted."""
+    return f"Not done: this product appears in {plural(sale_count, 'sale')} and cannot be deleted."
 
 
 def _parse_horizon(text: str) -> int:
