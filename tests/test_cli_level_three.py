@@ -1,6 +1,7 @@
 """Terminal program over a database: start-up, exit, reopen and storage errors."""
 
 import contextlib
+from datetime import datetime, timedelta
 import io
 from pathlib import Path
 import sqlite3
@@ -310,6 +311,73 @@ class ExplorationMenuTests(DatabaseMenuTestCase):
              "0"]
         )  # fmt: skip
         self.assertIn("Not done: the end date is before the start date.", script.output)
+
+
+class ForecastComparisonMenuTests(DatabaseMenuTestCase):
+    """Option 20: comparison table, honest notes, method choice and estimates."""
+
+    def import_days(self, days: int, skip: tuple[int, ...] = ()) -> str:
+        """Write a CSV with one sale per day and a weekly pattern; return its path."""
+        lines = ["sale_id,date_time,product_id,product,category,quantity,unit_price,unit_cost"]
+        for day in range(days):
+            if day in skip:
+                continue
+            moment = (datetime(2026, 1, 5, 10) + timedelta(days=day)).isoformat()
+            quantity = 1 + day // 7 + (4 if day % 7 == 5 else 0)
+            lines.append(f"S{day},{moment},001,Pen,Office,{quantity},10.00,4.00")
+        path = self.path.parent / f"history_{days}.csv"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return str(path)
+
+    def test_strong_evidence_table_and_model_estimates(self) -> None:
+        csv = self.import_days(63)
+        script = self.menu(["1", "Acme", "Retail", "7", csv, "20", "21", "", "0"])
+        text = script.text
+        self.assertIn(
+            "History: 63 days (2026-01-05 to 2026-03-08); evaluation: 4 blocks of 7 days "
+            "from 2026-02-09",
+            text,
+        )
+        self.assertIn("Lowest error in this evaluation: Linear trend + weekday.", text)
+        self.assertNotIn("No model beat", text)
+        self.assertIn("Method for the estimates (number, blank = Linear trend + weekday): ", text)
+        self.assertIn("Estimates (Linear trend + weekday), next 21 days:", text)
+        effects = next(line for line in script.output if line.startswith("Weekday effects"))
+        self.assertRegex(effects, r"^Weekday effects vs Monday: Tue [+-]\d+\.\d\d, .*, Sun ")
+        self.assertRegex(effects, r"; trend per day [+-]\d+\.\d\d\.$")
+        self.assertIn("estimates beyond 14 days are extrapolation.", text)
+        self.assertIn("Limitations: past errors do not guarantee future accuracy;", text)
+
+    def test_weak_evidence_skips_and_chosen_method(self) -> None:
+        csv = self.import_days(21)
+        script = self.menu(["1", "Acme", "Retail", "7", csv, "20", "", "x", "2", "0"])
+        text = script.text
+        self.assertIn("Skipped: Linear trend + weekday (needs 35 days of history)", text)
+        self.assertIn(
+            "Evidence too limited to name a lowest-error method (7 evaluated days).", text
+        )
+        self.assertIn("Invalid value: expected a positive whole number up to 4.", text)
+        header = next(i for i, line in enumerate(script.output) if line.startswith("#  Method"))
+        second = script.output[header + 2]
+        self.assertTrue(second.startswith("2  "))
+        title = second[3:].split("  ")[0]
+        self.assertIn(f"Estimates ({title}), next 7 days:", text)
+
+    def test_missing_days_question(self) -> None:
+        csv = self.import_days(20, skip=(3, 10))
+        script = self.menu(["1", "Acme", "Retail", "7", csv, "20", "", "n", "20", "", "y", "", "0"])
+        self.assertIn("Forecast cancelled.", script.output)
+        self.assertIn(
+            "2 missing days were treated as zero; weekly methods learn from these zeros.",
+            script.output,
+        )
+
+    def test_too_little_history(self) -> None:
+        csv = self.import_days(11)
+        script = self.menu(["1", "Acme", "Retail", "7", csv, "20", "", "0"])
+        self.assertIn(
+            "Not done: 11 day(s) of history available, at least 12 needed.", script.output
+        )
 
 
 if __name__ == "__main__":

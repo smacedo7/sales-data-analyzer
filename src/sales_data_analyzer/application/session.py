@@ -18,7 +18,14 @@ from sales_data_analyzer.exploration import (
     temporal_summary,
     weekday_profile,
 )
-from sales_data_analyzer.forecasting import ForecastResult, RevenueForecaster, daily_revenue
+from sales_data_analyzer.forecasting import (
+    MIN_HISTORY_DAYS,
+    ComparisonResult,
+    ForecastResult,
+    RevenueForecaster,
+    compare_methods,
+    daily_revenue,
+)
 
 from .errors import (
     CompanyNotFoundError,
@@ -318,4 +325,37 @@ class SalesSession:
                 raise InsufficientHistoryError(available, required)
         return RevenueForecaster().forecast(
             data, horizon=horizon, test_days=test_days, missing_days=missing_days, timezone=zone
+        )
+
+    def compare_forecasts(
+        self,
+        *,
+        horizon: int = 7,
+        missing_days: Literal["reject", "zero"] = "reject",
+        utc_offset: timedelta | None = None,
+        method: str | None = None,
+    ) -> ComparisonResult:
+        """Compare the forecast methods on the selected sales and forecast horizon days.
+
+        Days follow `run_forecast` (UTC offset grouping for data with offsets). Raise
+        NoSalesInSelectionError for an empty selection and InsufficientHistoryError
+        below 12 calendar days. The missing-day refusal and other comparison
+        ValueErrors propagate unchanged. The level 2 forecast is not affected.
+        """
+        data = self.selected_sales()
+        if not data.sales:
+            raise NoSalesInSelectionError()
+        zone = None
+        if self.data_is_aware():
+            zone = timezone(utc_offset if utc_offset is not None else timedelta(0))
+        filled = daily_revenue(data, missing_days="zero", timezone=zone)
+        if len(filled) < MIN_HISTORY_DAYS:
+            raise InsufficientHistoryError(len(filled), MIN_HISTORY_DAYS)
+        history = daily_revenue(data, missing_days=missing_days, timezone=zone)
+        sale_days = {
+            sale.date_time.astimezone(zone).date() if zone is not None else sale.date_time.date()
+            for sale in data.sales
+        }
+        return compare_methods(
+            history, horizon=horizon, method=method, zero_filled_days=len(history) - len(sale_days)
         )

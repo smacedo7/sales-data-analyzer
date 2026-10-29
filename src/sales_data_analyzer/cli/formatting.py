@@ -19,7 +19,7 @@ from sales_data_analyzer.exploration import (
     TemporalSummary,
     WeekdayProfile,
 )
-from sales_data_analyzer.forecasting import ForecastResult
+from sales_data_analyzer.forecasting import ComparisonResult, ForecastResult
 
 _CENT = Decimal("0.01")
 _TENTH = Decimal("0.1")
@@ -397,3 +397,106 @@ def explain_forecast_error(error: Exception) -> str:
         return "No sales in the current selection."
     message = str(error)
     return _FORECAST_MESSAGES.get(message, message)
+
+
+COMPARISON_LIMITATIONS = (
+    "Limitations: past errors do not guarantee future accuracy; choosing the lowest error on the",
+    "same evaluation is optimistic; holidays and promotions are not modeled; no confidence interval.",
+)
+"""Notice printed after every forecast comparison (constitution VI)."""
+
+_SKIP_REASONS = {"constant_revenue": "revenue is constant, so no trend can be learned"}
+_WEEKDAY_SHORT = ("Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+def _signed_float(value: float) -> str:
+    """Return a statistical value with sign and two decimals, never '-0.00'."""
+    rounded = round(value, 2) + 0.0
+    return f"{rounded:+,.2f}"
+
+
+def format_comparison(result: ComparisonResult, scope: str) -> list[str]:
+    """Return the evaluation table, skipped methods and the honest-wording notes."""
+    first_origin = result.origins[0].isoformat()
+    lines = [
+        f"Forecast comparison - {scope}",
+        f"History: {plural(result.history_days, 'day')} ({result.first_day.isoformat()} to "
+        f"{result.last_day.isoformat()}); evaluation: {plural(result.blocks, 'block')} of "
+        f"{result.block_days} days from {first_origin}",
+    ]
+    rows = [
+        (
+            str(number),
+            score.title,
+            score.kind,
+            format_float(score.mae),
+            format_float(score.rmse),
+            NOT_AVAILABLE if score.relative_mae is None else format_float(score.relative_mae),
+        )
+        for number, score in enumerate(result.scores, start=1)
+    ]
+    lines += format_table(("#", "Method", "Kind", "MAE", "RMSE", "vs last value"), rows, left=3)
+    for skipped in result.skipped:
+        reason = _SKIP_REASONS.get(skipped.reason) or (
+            f"needs {skipped.needed_days} days of history"
+        )
+        lines.append(f"Skipped: {skipped.title} ({reason})")
+    if result.lowest_error_key is None:
+        lines.append(
+            "Evidence too limited to name a lowest-error method "
+            f"({result.evaluated_days} evaluated days)."
+        )
+    else:
+        title = next(s.title for s in result.scores if s.method_key == result.lowest_error_key)
+        lines.append(f"Lowest error in this evaluation: {title}.")
+    if any(s.kind == "model" for s in result.scores):
+        if not result.model_beats_baselines:
+            lines.append("No model beat the best baseline in this evaluation.")
+        if not result.clear_difference:
+            lines.append(
+                "No clear difference between the best model and the best baseline (under 5%)."
+            )
+    if result.zero_filled_days:
+        lines.append(
+            f"{plural(result.zero_filled_days, 'missing day')} were treated as zero; "
+            "weekly methods learn from these zeros."
+        )
+    if result.floored_evaluation_days:
+        lines.append(
+            f"{plural(result.floored_evaluation_days, 'evaluation day')} had negative "
+            "estimates floored at 0."
+        )
+    lines.append(
+        "MAE = typical miss in revenue units; RMSE weighs large misses more; "
+        "ratio below 1 = lower error here."
+    )
+    return lines
+
+
+def format_comparison_estimates(result: ComparisonResult) -> list[str]:
+    """Return the chosen method's estimates, its coefficients and the limitations."""
+    lines = [f"Estimates ({result.chosen_title}), next {plural(len(result.future), 'day')}:"]
+    floored = set(result.floored_future_days)
+    values = [format_float(p.revenue) for p in result.future]
+    width = max((len(v) for v in values), default=0)
+    for prediction, value in zip(result.future, values, strict=True):
+        note = "  (negative estimate shown as 0)" if prediction.day in floored else ""
+        lines.append(f"{prediction.day.isoformat()}  {value:>{width}}{note}")
+    fit = result.fit
+    if fit is not None:
+        trend = f"trend per day {_signed_float(fit.trend_per_day)}"
+        if fit.weekday_effects is None:
+            lines.append(f"Fitted line: {trend}.")
+        else:
+            effects = ", ".join(
+                f"{name} {_signed_float(effect)}"
+                for name, effect in zip(_WEEKDAY_SHORT, fit.weekday_effects, strict=True)
+            )
+            lines.append(f"Weekday effects vs Monday: {effects}; {trend}.")
+    if result.extrapolation_warning:
+        lines.append(
+            f"Errors were measured {result.block_days} days ahead; "
+            "estimates beyond 14 days are extrapolation."
+        )
+    lines += COMPARISON_LIMITATIONS
+    return lines

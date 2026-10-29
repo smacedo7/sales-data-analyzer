@@ -156,3 +156,13 @@ class RevenueForecaster:
             tuple(Prediction(row.day, value) for row, value in zip(history[split:], estimates, strict=True)),
             model_errors, baseline_errors, baseline,
             tuple(Prediction(day, value) for day, value in zip(future_dates, future_values, strict=True)))
+
+
+# Level 3 method comparison; imported last because those modules use the classes above.
+from .methods import (  # noqa: E402, F401
+    DEFAULT_METHODS, ConstantRevenueError, FitSummary, ForecastMethod, LastValueBaseline,
+    LinearTrendModel, MovingAverageBaseline, SeasonalNaiveBaseline, WeekdayTrendModel,
+)
+from .comparison import (  # noqa: E402, F401
+    MIN_HISTORY_DAYS, ComparisonResult, MethodScore, SkippedMethod, compare_methods,
+)

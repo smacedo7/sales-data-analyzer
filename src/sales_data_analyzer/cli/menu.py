@@ -12,6 +12,7 @@ from sales_data_analyzer.application import (
     ApplicationError,
     CatalogConflictError,
     DuplicateSaleError,
+    InsufficientHistoryError,
     ItemInput,
     NoSalesInSelectionError,
     PersistenceError,
@@ -24,6 +25,8 @@ from sales_data_analyzer.importing import ImportValidationError
 
 from .formatting import (
     format_categories,
+    format_comparison,
+    format_comparison_estimates,
     format_period_comparison,
     format_temporal,
     format_weekdays,
@@ -107,6 +110,7 @@ class TerminalMenu:
             _Option(17, "Delete sale", self._delete_sale),
             _Option(18, "Sales over time", self._sales_over_time),
             _Option(19, "Compare periods", self._compare_periods),
+            _Option(20, "Compare forecast methods", self._compare_forecasts),
         )
 
     # -- loop -----------------------------------------------------------------
@@ -524,6 +528,54 @@ class TerminalMenu:
         )
         comparison = self.session.compare_periods(first, second)
         for line in format_period_comparison(comparison, first.describe(), second.describe()):
+            self._say(line)
+
+    def _compare_forecasts(self) -> None:
+        """Compare forecast methods, let the user pick one, then show its estimates."""
+        workspace = self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say(explain_forecast_error(NoSalesInSelectionError()))
+            return
+        horizon = self._ask(
+            f"Days to forecast (1-{MAX_HORIZON}, blank = {DEFAULT_HORIZON}): ", _parse_horizon
+        )
+        offset = None
+        if self.session.data_is_aware():
+            self._say("These sales have time zone offsets; days are grouped by a UTC offset.")
+            offset = self._ask("UTC offset (+HH:MM or -HH:MM, blank = +00:00): ", _parse_offset)
+        options = {"horizon": horizon, "utc_offset": offset, "missing_days": "reject"}
+        try:
+            result = self.session.compare_forecasts(**options)
+        except InsufficientHistoryError as error:
+            self._say(f"Not done: {error}.")
+            return
+        except ValueError as error:
+            if not is_missing_days_error(error):
+                raise
+            self._say(explain_forecast_error(error))
+            question = (
+                "Treat missing days as zero revenue? Only answer yes if your records "
+                "are complete. [y/N] "
+            )
+            if not self._ask(question, parse_yes_no):
+                self._say("Forecast cancelled.")
+                return
+            options["missing_days"] = "zero"
+            result = self.session.compare_forecasts(**options)
+        scope = f"{workspace.company.name} - {self.session.selection.describe()}"
+        for line in format_comparison(result, scope):
+            self._say(line)
+        number = self._ask(
+            f"Method for the estimates (number, blank = {result.chosen_title}): ",
+            lambda text: (
+                None if not text.strip() else parse_positive_int(text, maximum=len(result.scores))
+            ),
+        )
+        if number is not None and result.scores[number - 1].method_key != result.chosen_key:
+            result = self.session.compare_forecasts(
+                **options, method=result.scores[number - 1].method_key
+            )
+        for line in format_comparison_estimates(result):
             self._say(line)
 
     # -- prompt helpers ---------------------------------------------------------
