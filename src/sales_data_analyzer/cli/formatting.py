@@ -12,6 +12,13 @@ from sales_data_analyzer.application.session import MIN_TRAINING_DAYS
 from sales_data_analyzer.application.workspace import ImportSummary
 from sales_data_analyzer.domain.product import Product
 from sales_data_analyzer.domain.sale import Sale
+from sales_data_analyzer.exploration import (
+    WEEKDAY_NAMES,
+    CategoryTotal,
+    PeriodComparison,
+    TemporalSummary,
+    WeekdayProfile,
+)
 from sales_data_analyzer.forecasting import ForecastResult
 
 _CENT = Decimal("0.01")
@@ -137,7 +144,6 @@ def format_sales(sales: Sequence[Sale]) -> list[str]:
     """Return sales as an aligned table followed by their count."""
     if not sales:
         return ["No sales in the current selection."]
-    header = ("Sale ID", "Date and time", "Items", "Total")
     rows = [
         (
             sale.id,
@@ -147,14 +153,167 @@ def format_sales(sales: Sequence[Sale]) -> list[str]:
         )
         for sale in sales
     ]
+    header = ("Sale ID", "Date and time", "Items", "Total")
+    return [*format_table(header, rows, left=2), plural(len(sales), "sale")]
+
+
+def format_table(
+    header: Sequence[str], rows: Sequence[Sequence[str]], *, left: int = 1
+) -> list[str]:
+    """Return aligned columns: the first `left` columns to the left, the rest to the right."""
     widths = [max(len(cells[i]) for cells in (header, *rows)) for i in range(len(header))]
 
-    def render(cells: tuple[str, ...]) -> str:
-        left = [f"{cells[i]:<{widths[i]}}" for i in (0, 1)]
-        right = [f"{cells[i]:>{widths[i]}}" for i in (2, 3)]
-        return "  ".join(left + right).rstrip()
+    def render(cells: Sequence[str]) -> str:
+        parts = [
+            f"{cell:<{widths[i]}}" if i < left else f"{cell:>{widths[i]}}"
+            for i, cell in enumerate(cells)
+        ]
+        return "  ".join(parts).rstrip()
 
-    return [render(header), *(render(cells) for cells in rows), plural(len(sales), "sale")]
+    return [render(header), *(render(cells) for cells in rows)]
+
+
+def format_temporal(summary: TemporalSummary, scope: str) -> list[str]:
+    """Return revenue, cost, gross profit and sales per period with a total row."""
+    lines = [f"Sales by {summary.granularity} - {scope}"]
+    rows = [
+        (
+            row.label,
+            format_money(row.revenue),
+            format_money(row.cost),
+            format_money(row.gross_profit),
+            str(row.sale_count),
+        )
+        for row in summary.rows
+    ]
+    revenue = sum((row.revenue for row in summary.rows), Decimal(0))
+    cost = sum((row.cost for row in summary.rows), Decimal(0))
+    count = sum(row.sale_count for row in summary.rows)
+    rows.append(
+        (
+            "Total",
+            format_money(revenue),
+            format_money(cost),
+            format_money(revenue - cost),
+            str(count),
+        )
+    )
+    lines += format_table(("Period", "Revenue", "Cost", "Gross profit", "Sales"), rows)
+    if summary.missing_days:
+        if summary.zero_filled:
+            lines.append(f"{plural(summary.missing_days, 'day')} without sales shown as zero.")
+        else:
+            lines.append(
+                f"{plural(summary.missing_days, 'day')} without recorded sales "
+                "between the first and last sale (periods without sales are not listed)."
+            )
+    if summary.days_are_utc:
+        lines.append("Days are UTC days.")
+    return lines
+
+
+def format_weekdays(
+    profile: Sequence[WeekdayProfile], scope: str, *, zero_filled: bool, days_are_utc: bool
+) -> list[str]:
+    """Return total and average revenue per weekday, Monday first."""
+    rows = [
+        (
+            WEEKDAY_NAMES[row.weekday],
+            str(row.occurrences),
+            format_money(row.total_revenue),
+            format_optional_money(row.average_revenue),
+        )
+        for row in profile
+    ]
+    lines = [f"Revenue by weekday - {scope}"]
+    lines += format_table(("Weekday", "Days", "Revenue", "Average"), rows)
+    if zero_filled:
+        lines.append("Averages include days without sales as zero.")
+    else:
+        lines.append("Averages count only days with sales.")
+    if days_are_utc:
+        lines.append("Days are UTC days.")
+    return lines
+
+
+def format_categories(totals: Sequence[CategoryTotal], scope: str) -> list[str]:
+    """Return item totals per category, highest revenue first."""
+    rows = [
+        (
+            row.category,
+            str(row.quantity),
+            format_money(row.revenue),
+            format_money(row.cost),
+            format_money(row.gross_profit),
+        )
+        for row in totals
+    ]
+    lines = [f"Sales by category - {scope}"]
+    lines += format_table(("Category", "Qty", "Revenue", "Cost", "Gross profit"), rows)
+    return lines
+
+
+def _signed_money(amount: Decimal) -> str:
+    """Return a money change with an explicit sign."""
+    text = format_money(amount)
+    return text if text.startswith("-") else f"+{text}"
+
+
+def _signed_percent(ratio: Decimal | None) -> str:
+    """Return a change ratio as a signed percentage, or n/a when undefined."""
+    text = format_percent(ratio)
+    return text if ratio is None or text.startswith("-") else f"+{text}"
+
+
+def format_period_comparison(comparison: PeriodComparison, first: str, second: str) -> list[str]:
+    """Return both periods side by side with the absolute and percentage change."""
+    a, b = comparison.first, comparison.second
+    margin_change = (
+        NOT_AVAILABLE
+        if a.gross_margin is None or b.gross_margin is None
+        else f"{_signed_percent(b.gross_margin - a.gross_margin)[:-1]} pp"
+    )
+    rows = [
+        (
+            "Revenue",
+            format_money(a.revenue),
+            format_money(b.revenue),
+            _signed_money(comparison.revenue_change),
+            _signed_percent(comparison.revenue_change_ratio),
+        ),
+        (
+            "Cost",
+            format_money(a.cost),
+            format_money(b.cost),
+            _signed_money(comparison.cost_change),
+            _signed_percent(comparison.cost_change_ratio),
+        ),
+        (
+            "Gross profit",
+            format_money(a.gross_profit),
+            format_money(b.gross_profit),
+            _signed_money(comparison.gross_profit_change),
+            _signed_percent(comparison.gross_profit_change_ratio),
+        ),
+        (
+            "Gross margin",
+            format_percent(a.gross_margin),
+            format_percent(b.gross_margin),
+            margin_change,
+            "",
+        ),
+        (
+            "Sales",
+            str(a.sale_count),
+            str(b.sale_count),
+            f"{comparison.sale_count_change:+d}",
+            _signed_percent(comparison.sale_count_change_ratio),
+        ),
+    ]
+    lines = [f"Period comparison: first {first}, second {second}"]
+    lines += format_table(("", "First", "Second", "Change", "% change"), rows)
+    lines.append("Changes are second minus first; % change is relative to the first period.")
+    return lines
 
 
 FORECAST_LIMITATIONS = (

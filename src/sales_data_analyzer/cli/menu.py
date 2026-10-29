@@ -17,11 +17,16 @@ from sales_data_analyzer.application import (
     PersistenceError,
     ProductInUseError,
     SalesSession,
+    Selection,
     StorageLimitError,
 )
 from sales_data_analyzer.importing import ImportValidationError
 
 from .formatting import (
+    format_categories,
+    format_period_comparison,
+    format_temporal,
+    format_weekdays,
     explain_forecast_error,
     format_financial,
     format_forecast,
@@ -100,6 +105,8 @@ class TerminalMenu:
             _Option(15, "Delete product", self._delete_product),
             _Option(16, "List sales", self._list_sales),
             _Option(17, "Delete sale", self._delete_sale),
+            _Option(18, "Sales over time", self._sales_over_time),
+            _Option(19, "Compare periods", self._compare_periods),
         )
 
     # -- loop -----------------------------------------------------------------
@@ -457,6 +464,67 @@ class TerminalMenu:
             return
         workspace.delete_sale(sale.id)
         self._say(f"Sale deleted: {sale.id}")
+
+    # -- exploration (level 3) ------------------------------------------------------
+
+    def _sales_over_time(self) -> None:
+        """Show the selection grouped by day, week, month, weekday or category."""
+        self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say("No sales in the current selection.")
+            return
+        choice = self._ask(
+            "Group by: 1 day, 2 week, 3 month, 4 weekday, 5 category: ",
+            lambda text: parse_positive_int(text, maximum=5),
+        )
+        scope = self._scope()
+        if choice == 5:
+            lines = format_categories(self.session.category_totals(), scope)
+        elif choice == 4:
+            zero = self._ask_zero_days()
+            lines = format_weekdays(
+                self.session.weekday_profile(missing_days="zero" if zero else "reject"),
+                scope,
+                zero_filled=zero,
+                days_are_utc=self.session.data_is_aware(),
+            )
+        else:
+            granularity = ("day", "week", "month")[choice - 1]
+            zero = self._ask_zero_days()
+            summary = self.session.sales_over_time(
+                granularity, missing_days="zero" if zero else "reject"
+            )
+            lines = format_temporal(summary, scope)
+        for line in lines:
+            self._say(line)
+
+    def _ask_zero_days(self) -> bool:
+        """Ask whether days without sales count as zero, only when such days exist."""
+        missing = self.session.sales_over_time("day").missing_days
+        if not missing:
+            return False
+        self._say(f"{plural(missing, 'day')} between the first and last sale have no sales.")
+        return self._ask(
+            "Treat them as zero revenue? Only answer yes if your records are complete. [y/N] ",
+            parse_yes_no,
+        )
+
+    def _compare_periods(self) -> None:
+        """Ask two periods and compare their totals; the active selection is kept."""
+        self.session.require_current()
+        if self.session.data_is_aware():
+            self._say("These sales have time zone offsets: dates are interpreted in UTC.")
+        first = Selection(
+            self._ask("First period start (YYYY-MM-DD): ", parse_date),
+            self._ask("First period end (YYYY-MM-DD, included): ", parse_date),
+        )
+        second = Selection(
+            self._ask("Second period start (YYYY-MM-DD): ", parse_date),
+            self._ask("Second period end (YYYY-MM-DD, included): ", parse_date),
+        )
+        comparison = self.session.compare_periods(first, second)
+        for line in format_period_comparison(comparison, first.describe(), second.describe()):
+            self._say(line)
 
     # -- prompt helpers ---------------------------------------------------------
 

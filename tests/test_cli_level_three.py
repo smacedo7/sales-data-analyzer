@@ -236,5 +236,81 @@ class MaintenanceMenuTests(DatabaseMenuTestCase):
         self.assertEqual(script.output.count("Not done: create or select a company first."), 2)
 
 
+class ExplorationMenuTests(DatabaseMenuTestCase):
+    """Options 18-19: grouped totals and period comparison."""
+
+    FOURTEEN = str(FIXTURES / "forecast_14_days.csv")
+
+    def table(self, script: Script, title: str) -> list[str]:
+        """Return the lines from a result title up to the next prompt."""
+        start = next(i for i, line in enumerate(script.output) if line.startswith(title))
+        end = next(i for i in range(start, len(script.output)) if script.output[i] == "")
+        return script.output[start:end]
+
+    def test_weekly_totals_match_the_financial_analysis(self) -> None:
+        script = self.menu(["1", "Acme", "Retail", "7", self.FOURTEEN, "18", "2", "10", "0"])
+        table = self.table(script, "Sales by week")
+        self.assertEqual(
+            table[1].split(), ["Period", "Revenue", "Cost", "Gross", "profit", "Sales"]
+        )
+        self.assertEqual(
+            [line.split()[0] for line in table[2:]], ["2026-W01", "2026-W02", "2026-W03", "Total"]
+        )
+        total = table[-1].split()
+        revenue = next(line for line in script.output if line.startswith("Revenue"))
+        self.assertEqual(total[1], revenue.split()[-1])
+
+    def test_missing_days_question_and_note(self) -> None:
+        lines = ["1", "Acme", "Retail", "7", VALID, "6", "003", "2026-01-05T10:00:00", "007",
+                 "1", "1", "1", "", "18", "1", "n", "18", "1", "y", "0"]  # fmt: skip
+        script = self.menu(lines)
+        self.assertIn("2 days between the first and last sale have no sales.", script.output)
+        self.assertIn(
+            "2 days without recorded sales between the first and last sale "
+            "(periods without sales are not listed).",
+            script.output,
+        )
+        self.assertIn("2 days without sales shown as zero.", script.output)
+        self.assertTrue(any(line.startswith("2026-01-03 ") for line in script.output))
+
+    def test_category_and_weekday_views(self) -> None:
+        script = self.menu(["1", "Acme", "Retail", "7", self.FOURTEEN, "18", "5", "18", "4", "0"])
+        self.assertEqual(
+            self.table(script, "Sales by category")[2].split()[:2], ["Beverages", "105"]
+        )
+        weekdays = self.table(script, "Revenue by weekday")
+        self.assertEqual(weekdays[2].split(), ["Monday", "2", "170.00", "85.00"])
+        self.assertEqual(weekdays[-1], "Averages count only days with sales.")
+
+    def test_offset_data_says_days_are_utc(self) -> None:
+        aware = str(FIXTURES / "aware_sales.csv")
+        script = self.menu(["1", "Acme", "Retail", "7", aware, "18", "3", "0"])
+        self.assertIn("Days are UTC days.", script.output)
+
+    def test_empty_selection(self) -> None:
+        script = self.menu(["1", "Acme", "Retail", "18", "0"])
+        self.assertIn("No sales in the current selection.", script.output)
+
+    def test_compare_periods_with_zero_base(self) -> None:
+        script = self.menu(
+            ["1", "Acme", "Retail", "7", VALID, "19", "2025-01-01", "2025-01-31",
+             "2026-01-01", "2026-01-02", "0"]
+        )  # fmt: skip
+        table = self.table(script, "Period comparison")
+        self.assertEqual(
+            table[0],
+            "Period comparison: first 2025-01-01 to 2025-01-31, second 2026-01-01 to 2026-01-02",
+        )
+        self.assertEqual(table[2].split(), ["Revenue", "0.00", "45.40", "+45.40", "n/a"])
+        self.assertEqual(table[4].split()[-1], "n/a")
+
+    def test_reversed_period_is_refused(self) -> None:
+        script = self.menu(
+            ["1", "Acme", "Retail", "19", "2026-01-02", "2026-01-01", "2026-01-01", "2026-01-02",
+             "0"]
+        )  # fmt: skip
+        self.assertIn("Not done: the end date is before the start date.", script.output)
+
+
 if __name__ == "__main__":
     unittest.main()

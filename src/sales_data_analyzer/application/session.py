@@ -8,6 +8,16 @@ from sales_data_analyzer.analysis import AnalysisResult, FinancialAnalysis, Prod
 from sales_data_analyzer.domain.company import Company
 from sales_data_analyzer.domain.sales_dataset import SalesDataset
 from sales_data_analyzer.domain.validation import validate_non_empty_string
+from sales_data_analyzer.exploration import (
+    CategoryTotal,
+    PeriodComparison,
+    TemporalSummary,
+    WeekdayProfile,
+    category_totals,
+    compare_periods,
+    temporal_summary,
+    weekday_profile,
+)
 from sales_data_analyzer.forecasting import ForecastResult, RevenueForecaster, daily_revenue
 
 from .errors import (
@@ -198,8 +208,13 @@ class SalesSession:
         Period days are local calendar days for naive data and UTC days for
         data with offsets (imports normalize offsets to UTC).
         """
+        return self._sales_in(self._selection)
+
+    def _sales_in(self, selection: Selection) -> SalesDataset:
+        """Return the current company's sales inside selection (see selected_sales)."""
         workspace = self.require_current()
-        selection = self._selection
+        if not isinstance(selection, Selection):
+            raise TypeError("selection must be a Selection")
         if selection.start is None or selection.end is None:
             return workspace.sales
         zone = timezone.utc if self.data_is_aware() else None
@@ -216,6 +231,62 @@ class SalesSession:
     def run_product_analysis(self) -> AnalysisResult:
         """Run the existing ProductAnalysis on the selected sales."""
         return ProductAnalysis().run(self.selected_sales())
+
+    # -- exploration ----------------------------------------------------------------
+
+    def _day_zone(self) -> timezone | None:
+        """Return UTC for data with offsets (days are UTC days), None for naive data."""
+        return timezone.utc if self.data_is_aware() else None
+
+    def sales_over_time(
+        self,
+        granularity: Literal["day", "week", "month"],
+        *,
+        missing_days: Literal["reject", "zero"] = "reject",
+    ) -> TemporalSummary:
+        """Group the selected sales by day, ISO week or month (exact totals).
+
+        Raise NoSalesInSelectionError for an empty selection.
+        """
+        data = self._require_selected_sales()
+        return temporal_summary(
+            data, granularity, missing_days=missing_days, timezone=self._day_zone()
+        )
+
+    def weekday_profile(
+        self, *, missing_days: Literal["reject", "zero"] = "reject"
+    ) -> tuple[WeekdayProfile, ...]:
+        """Return revenue per weekday of the selected sales, Monday first.
+
+        Raise NoSalesInSelectionError for an empty selection.
+        """
+        data = self._require_selected_sales()
+        return weekday_profile(data, missing_days=missing_days, timezone=self._day_zone())
+
+    def category_totals(self) -> tuple[CategoryTotal, ...]:
+        """Return revenue, cost and gross profit per catalog category of the selection.
+
+        Raise NoSalesInSelectionError for an empty selection.
+        """
+        data = self._require_selected_sales()
+        categories = {p.id: p.category for p in self.require_current().products}
+        return category_totals(data, categories)
+
+    def compare_periods(self, first: Selection, second: Selection) -> PeriodComparison:
+        """Compare two periods of the current company; the active selection is unchanged.
+
+        Either period may be empty (its totals are zero and ratios against it None).
+        """
+        return compare_periods(self._sales_in(first), self._sales_in(second))
+
+    def _require_selected_sales(self) -> SalesDataset:
+        """Return the selected sales or raise NoSalesInSelectionError when there are none."""
+        data = self.selected_sales()
+        if not data.sales:
+            raise NoSalesInSelectionError()
+        return data
+
+    # -- forecast -------------------------------------------------------------------
 
     def run_forecast(
         self,
