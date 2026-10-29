@@ -64,6 +64,7 @@ class StartAndExitTests(DatabaseMenuTestCase):
         second = self.menu(["2", "1", "10", "0"])
         self.assertIn("Loaded 1 company(ies), 2 product(s), 2 sale(s).", second.output)
         revenue = [line for line in first.output if line.startswith("Revenue")]
+        self.assertEqual(len(revenue), 1)
         self.assertEqual(revenue, [line for line in second.output if line.startswith("Revenue")])
 
     def test_level_two_session_gives_the_same_results_over_a_database(self) -> None:
@@ -131,6 +132,16 @@ class CommandLineTests(DatabaseMenuTestCase):
         self.assertEqual(status, 0)
         self.assertIn(f"Database: {self.path}", out)
         self.assertEqual(row_counts(self.path)["company"], 1)
+
+    def test_default_database_is_used_without_option(self) -> None:
+        default = self.path.parent / "user data" / "sales.sqlite3"
+        with mock.patch(
+            "sales_data_analyzer.persistence.default_database_path", return_value=default
+        ):
+            status, out, _ = self.run_cli([], "1\nAcme\nRetail\n0\n")
+        self.assertEqual(status, 0)
+        self.assertIn(f"Database: {default}", out)
+        self.assertEqual(row_counts(default)["company"], 1)
 
     def test_non_database_file_is_refused_unchanged(self) -> None:
         self.path.write_text("not a database\n" * 100, encoding="utf-8")

@@ -105,6 +105,15 @@ class OpenTests(RepositoryTestCase):
             SQLiteSalesRepository.open(self.path)
         self.assertIn("newer version", str(caught.exception))
 
+    def test_older_version_is_refused(self) -> None:
+        self.open().close()
+        connection = raw_connection(self.path)
+        connection.execute("PRAGMA user_version = 0")
+        connection.close()
+        with self.assertRaises(DatabaseOpenError) as caught:
+            SQLiteSalesRepository.open(self.path)
+        self.assertIn("schema version is not supported", str(caught.exception))
+
     def test_folder_path_is_refused(self) -> None:
         with self.assertRaises(DatabaseOpenError):
             SQLiteSalesRepository.open(self.path.parent)
@@ -222,7 +231,8 @@ class RoundTripTests(RepositoryTestCase):
         repository.add_company(first)
         repository.add_company(second)
         catalog = {
-            company: (Product("010", company, "B", "X"), Product("002", company, "A", "Y"))
+            # Names sort opposite to codes, and item positions opposite to product row ids.
+            company: (Product("010", company, "A", "X"), Product("002", company, "B", "Y"))
             for company in (first, second)
         }
         for company, products in catalog.items():
@@ -233,7 +243,7 @@ class RoundTripTests(RepositoryTestCase):
             [],
             [
                 make_sale(
-                    first, "S9", datetime(2026, 1, 2), (late, 1, "1", "1"), (early, 2, "2", "1")
+                    first, "S9", datetime(2026, 1, 2), (early, 2, "2", "1"), (late, 1, "1", "1")
                 ),
                 make_sale(first, "S1", datetime(2026, 1, 1), (early, 3, "3", "1")),
             ],
@@ -243,7 +253,7 @@ class RoundTripTests(RepositoryTestCase):
         zeta = stored[0]
         self.assertEqual([p.id for p in zeta.products], ["002", "010"])
         self.assertEqual([sale.id for sale in zeta.sales.sales], ["S9", "S1"])
-        self.assertEqual([item.product.id for item in zeta.sales.sales[0].items], ["010", "002"])
+        self.assertEqual([item.product.id for item in zeta.sales.sales[0].items], ["002", "010"])
         self.assertEqual(len(stored[1].products), 2)
         self.assertEqual(stored[1].sales.sales, ())
         catalog_by_id = {product.id: product for product in zeta.products}
@@ -281,6 +291,35 @@ class RoundTripTests(RepositoryTestCase):
         (stored,) = repository.load()
         repository.add_product(stored.company, Product("001", stored.company, "Pen", "Office"))
         self.assertEqual(row_counts(self.path)["product"], 1)
+
+    def test_program_connections_enforce_foreign_keys(self) -> None:
+        from sales_data_analyzer.persistence import schema
+
+        repository = self.open()
+        acme, beta = Company("Acme", "Retail"), Company("Beta", "Retail")
+        for company in (acme, beta):
+            repository.add_company(company)
+        repository.add_sales(beta, [Product("001", beta, "Pen", "Office")], [])
+        # A sale of Acme (company 1) whose item points at Beta's product (row 1).
+        with self.assertRaises(ConcurrentChangeError):
+            with repository._transaction() as connection:
+                connection.execute(
+                    schema.sale.insert().values(
+                        id=1, company_id=1, code="S1", occurred_at="2026-01-01T00:00:00"
+                    )
+                )
+                connection.execute(
+                    schema.sale_item.insert().values(
+                        sale_id=1,
+                        position=1,
+                        company_id=1,
+                        product_id=1,
+                        quantity=1,
+                        unit_price="1",
+                        unit_cost="1",
+                    )
+                )
+        self.assertEqual(row_counts(self.path)["sale"], 0)
 
     def test_unknown_company_is_a_programming_error(self) -> None:
         repository = self.open()

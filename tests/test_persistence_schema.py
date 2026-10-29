@@ -49,8 +49,20 @@ class SchemaTests(unittest.TestCase):
 
     def test_amount_text_must_be_plain_decimal(self) -> None:
         for amount in ("1E-7", "1.", ".5", "-1", "1.2.3", "", "abc"):
-            with self.subTest(amount=amount), self.assertRaises(sqlite3.IntegrityError):
-                self.insert_item(1, 1, 1, 1, 1, amount, "1")
+            with self.subTest(column="unit_price", amount=amount):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insert_item(1, 1, 1, 1, 1, amount, "1")
+            with self.subTest(column="unit_cost", amount=amount):
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.insert_item(1, 1, 1, 1, 1, "1", amount)
+
+    def test_item_cannot_claim_another_company_sale(self) -> None:
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.insert_item(1, 1, 2, 2, 1, "1", "1")
+
+    def test_timestamp_text_needs_seconds(self) -> None:
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute("INSERT INTO sale VALUES (2, 1, 'S2', '2026-01-01')")
 
     def test_quantity_and_position_must_be_positive(self) -> None:
         with self.assertRaises(sqlite3.IntegrityError):

@@ -119,13 +119,13 @@ class SQLiteSalesRepository(SalesRepository):
         repository = cls(engine, path)
         try:
             repository._prepare()
-        except DatabaseOpenError:
-            engine.dispose()
-            raise
         except sa.exc.DatabaseError as error:
             engine.dispose()
             reason = "the file is not a database" if _not_a_database(error) else "it cannot be read"
             raise DatabaseOpenError(reason) from None
+        except BaseException:
+            engine.dispose()  # never leave the file open (Windows could not delete it)
+            raise
         return repository
 
     def _prepare(self) -> None:

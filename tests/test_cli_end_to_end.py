@@ -108,6 +108,28 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn(f"Data is saved in {self.database}.", result.stdout)
         self.assertNotIn("Traceback", result.stdout + result.stderr)
 
+    def test_without_option_the_database_goes_to_the_user_data_folder(self) -> None:
+        env = {
+            **os.environ,
+            "PYTHONPATH": str(ROOT / "src"),
+            "HOME": str(self.home),
+            "USERPROFILE": str(self.home),
+            "LOCALAPPDATA": str(self.home / "AppData" / "Local"),
+            "XDG_DATA_HOME": str(self.home / "data"),
+        }
+        result = subprocess.run(
+            [sys.executable, "-m", "sales_data_analyzer"],
+            input="1\nShop\nRetail\n0\n",
+            capture_output=True,
+            encoding="utf-8",
+            env=env,
+            timeout=60,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (created,) = [p for p in self.home.rglob("sales.sqlite3")]
+        self.assertIn(f"Database: {created}", result.stdout)
+
     def test_unusable_database_exits_with_status_two(self) -> None:
         self.database.write_text("plain text, not a database\n" * 50, encoding="utf-8")
         before = self.database.read_bytes()

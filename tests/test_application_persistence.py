@@ -169,9 +169,9 @@ class SurviveRestartTests(PersistentSessionTestCase):
         with self.assertRaises(DuplicateSaleError):
             acme.import_sales(FIXTURES / "valid_sales.csv")
         acme.register_product("002", "Ink", "Office")
-        self.start()
         third = self.start()
         self.assertEqual(describe(third), describe(reopened))
+        self.assertEqual(describe(self.start()), describe(third))
         self.assertEqual(row_counts(self.path)["company"], 2)
 
     def test_company_names_stay_unique_after_restart(self) -> None:
@@ -261,6 +261,18 @@ class AllOrNothingTests(PersistentSessionTestCase):
         self.assert_unchanged(
             lambda: acme.record_sale("M2", datetime(2026, 4, 1), too_large), StorageLimitError
         )
+
+    def test_change_by_another_copy_is_refused_and_changes_nothing(self) -> None:
+        other = self.start()
+        other.select_company(1).record_sale(
+            "M1", datetime(2026, 5, 1), [ItemInput("001", 1, Decimal("1"), Decimal("1"))]
+        )
+        item = [ItemInput("001", 2, Decimal("2"), Decimal("1"))]
+        counts, memory = row_counts(self.path), snapshot(self.session)
+        with self.assertRaises(ConcurrentChangeError):
+            self.acme.record_sale("M1", datetime(2026, 5, 2), item)
+        self.assertEqual(row_counts(self.path), counts)
+        self.assertEqual(snapshot(self.session), memory)
 
     def test_failed_product_and_company_writes_change_nothing(self) -> None:
         holder = sqlite3.connect(self.path, autocommit=True, timeout=0)
