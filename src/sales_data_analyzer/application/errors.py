@@ -103,3 +103,24 @@ class InsufficientHistoryError(ApplicationError):
         super().__init__(
             f"{available_days} day(s) of history available, at least {required_days} needed"
         )
+
+
+class PersistenceError(ApplicationError):
+    """Raised when a database write failed and was rolled back; nothing was changed."""
+
+    def __init__(self, message: str = "the database could not be updated") -> None:
+        super().__init__(message)
+
+
+class ConcurrentChangeError(PersistenceError):
+    """Raised when stored data no longer matches the session, e.g. another running copy."""
+
+    def __init__(self) -> None:
+        super().__init__("the data was changed by another copy of the program; restart it")
+
+
+class StorageLimitError(ApplicationError):
+    """Raised before writing when a quantity exceeds the storable integer range."""
+
+    def __init__(self) -> None:
+        super().__init__("a quantity is larger than the database can store")
