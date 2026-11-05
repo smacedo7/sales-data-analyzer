@@ -53,8 +53,8 @@ NLP, cloud services) are not added unless a concrete requirement appears.
 | --- | --- | --- |
 | 1 | Object model, CSV import, analyses, basic forecast, UML | Merged into `main` (PR #11). Video and submission are student actions. |
 | 2 | Functional terminal menu exposing the existing operations, in memory | `specs/001-terminal-menu/` tasks complete and merged |
-| 3 | Persistence in SQLite, maintenance, exploration, forecast comparison, charts | Feature branch proposed to `dev` |
-| 4 | PySide6 graphical interface over the same application services | To be specified after level 3 |
+| 3 | Persistence in SQLite, maintenance, exploration, forecast comparison, charts | Merged into `main` |
+| 4 | PySide6 graphical interface over the same application services and database | Implemented on `dev`; `dev → main` after review |
 
 Temporal analyses, charts and the improved forecast evaluation were delivered
-with level 3. PDF reports are scheduled for level 4 or later.
+with level 3. PDF reports remain planned after level 4.

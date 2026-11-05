@@ -1,13 +1,14 @@
 # Sales Data Analyzer
 
-A Python project for sales analytics and basic daily revenue forecasting,
-with a desktop application planned for a later stage.
+A Python project for sales analytics and daily revenue forecasting, with a
+terminal menu and a desktop window over the same application services.
 
 The current implementation provides validated sales entities, financial and
 product analyses, atomic CSV import, temporal exploration, an honest comparison of
 forecast methods and terminal-friendly charts. Data lives in a local SQLite
-database. Features are available through an interactive terminal menu (levels 2
-and 3), the Python API and executable synthetic-data examples.
+database. Features are available through a PySide6 desktop window (level 4), an
+interactive terminal menu (levels 2 and 3), the Python API and executable
+synthetic-data examples.
 
 ## Implemented Features
 
@@ -28,8 +29,10 @@ and 3), the Python API and executable synthetic-data examples.
   (pandas, exact `Decimal` totals); period comparison; a rolling-origin
   comparison of five forecast methods against baselines; text bar charts and PNG
   charts (Matplotlib).
+- Level 4: PySide6 desktop window with company, catalog, sales, CSV import,
+  period, analysis, forecast and chart tabs over the same SQLite database.
 
-PDF reports and a desktop interface remain planned.
+PDF reports remain planned.
 
 ## Getting Started
 
@@ -59,6 +62,37 @@ Expected accounting results:
 | Gross profit | 630 |
 | Gross margin | 0.6 (60%) |
 | Average order value | 75 |
+
+## Running the Desktop Window
+
+```sh
+uv sync --locked
+uv run sales-data-analyzer-desktop
+# or: uv run python -m sales_data_analyzer.gui --database data/demo.sqlite3
+```
+
+The window opens the same database file as the terminal menu (or the one given
+with `--database`) and shows it in the status bar. The top bar selects, creates
+and edits companies and applies a period (both days included) or all data.
+The tabs are:
+
+| Tab | What it does |
+| --- | --- |
+| Catalog | register, edit and delete products (only products no sale uses) |
+| Sales | sales of the selection; record a sale with several items; import a CSV file; delete a sale |
+| Analyses | financial summary, products, sales by day/week/month, weekday profile, categories, two-period comparison |
+| Forecast | level 2 linear forecast and the comparison of forecast methods; pick the method behind the estimates |
+| Charts | daily revenue (with the comparison estimate), monthly revenue and top products drawn in the window; save them as PNG |
+
+The window does not compute any figure itself: every number comes from the
+application services and is worded by the same formatter as the terminal, so
+both interfaces show identical results. Amounts are typed as plain decimals
+(`10.50`) and stored exactly. Refusals (duplicate IDs, invalid files, products
+in use, short histories) are explained in a dialog and change nothing; deleting,
+replacing a chart file or treating missing days as zero always asks first, with
+No as the default. Close the window to exit; every confirmed change is already
+saved. Running the window and the terminal on the same file at the same time is
+detected as a change by another copy, and the second program asks to restart.
 
 ## Running the Terminal Menu
 
@@ -148,7 +182,9 @@ Tests cover SQLite persistence (exact round trips, reopening, constraints,
 rollback after injected failures, locked and invalid files, always on temporary
 databases), maintenance use cases, exploration totals against the financial
 analysis, each forecast method on hand-made series, rolling-origin leakage
-(a spy method never sees its evaluation days), text and PNG charts, the application layer, terminal parsing, formatting and scripted
+(a spy method never sees its evaluation days), text and PNG charts, the desktop
+window (headless Qt with a scripted prompter: every tab, refusal wording, real
+button clicks, rollback after storage failures and reopening the database), the application layer, terminal parsing, formatting and scripted
 menu sessions, an end-to-end run of the real entry point, CSV validation, atomic import, ID preservation, domain validation, exact accounting, empty/zero/loss cases, product
 identity, ranking ties, temporal ordering, holdout isolation, baseline errors,
 missing days, timezone conversion and invalid forecast inputs.
@@ -177,13 +213,14 @@ checks on every pull request to `main` or `dev` and every push to `dev`.
 | scikit-learn | Linear regression |
 | SQLite through SQLAlchemy Core | Local persistence (no ORM; STRICT tables, exact decimal text) |
 | pandas | Grouping for temporal and category summaries (`Decimal` object columns) |
-| Matplotlib | PNG charts with the non-interactive Agg renderer |
+| Matplotlib | PNG charts (Agg renderer) and charts embedded in the window |
+| PySide6-Essentials (Qt 6) | Desktop window (level 4); tests run with Qt's offscreen platform |
 | NumPy and SciPy | Numerical dependencies of scikit-learn |
 | Ruff (development only) | Lint and format checks |
 | GitHub Actions | Continuous integration on Ubuntu, macOS and Windows |
 
-PySide6 is the candidate for the level 4 desktop interface. Pandas and
-Matplotlib are imported only when a summary or image is requested.
+Pandas and Matplotlib are imported only when a summary or image is requested;
+PySide6 is imported only by the desktop window.
 
 ## Architecture and Object Model
 
@@ -197,7 +234,8 @@ src/sales_data_analyzer/
 ├── persistence/   # Level 3: SQLite repository (SQLAlchemy Core) and schema
 ├── exploration/   # Level 3: grouped summaries with pandas and exact Decimal totals
 ├── charts/        # Level 3: text bar charts and Matplotlib PNG files
-└── cli/           # Terminal menu, command line, input parsing, output formatting
+├── cli/           # Terminal menu, command line, input parsing, output formatting
+└── gui/           # Level 4: PySide6 window, tabs, forms, prompter and error funnel
 examples/
 ├── import_and_analyze.py
 ├── analysis_and_forecast.py
@@ -347,7 +385,9 @@ A [Portuguese video script for level 2](docs/video-script-level-two-pt.md) plans
 its presentation under three minutes.
 The level 3 additions (repository, persistence, exploration, forecast methods and
 charts) are modeled in [level-three.drawio](docs/diagrams/level-three.drawio)
-([preview](docs/diagrams/level-three.svg)).
+([preview](docs/diagrams/level-three.svg)). The level 4 desktop window and its
+dependencies are modeled in [level-four.drawio](docs/diagrams/level-four.drawio)
+([preview](docs/diagrams/level-four.svg)).
 
 See the [delivery checklist](docs/level-one-delivery.md) for implementation and
 test evidence, and the [Portuguese video script](docs/video-script-pt.md) for a
@@ -374,7 +414,7 @@ extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 - [ ] Add reporting and PDF export.
 - [x] Level 3: SQLite persistence with exact amounts and atomic writes, data
   maintenance, temporal exploration, forecast method comparison and charts.
-- [ ] Build the desktop interface.
+- [x] Level 4: PySide6 desktop interface over the same services and database.
 
 ## Development Workflow
 
