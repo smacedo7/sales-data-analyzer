@@ -78,7 +78,7 @@ class CatalogPage(Page):
         if values is None:
             return
         workspace = self.session.require_current()
-        if self.window_.attempt(
+        if self.window_.perform(
             lambda: workspace.update_product(product.id, values.name, values.category)
         ):
             self.window_.refresh()
@@ -107,5 +107,5 @@ class CatalogPage(Page):
                 return False
             return True
 
-        if self.window_.attempt(delete):
+        if self.window_.attempt(delete) is True:
             self.window_.refresh()

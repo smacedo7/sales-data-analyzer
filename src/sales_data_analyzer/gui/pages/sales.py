@@ -125,5 +125,5 @@ class SalesPage(Page):
         )
         if not self.window_.prompter.confirm(question):
             return
-        if self.window_.attempt(lambda: workspace.delete_sale(sale.id)) is not None:
+        if self.window_.perform(lambda: workspace.delete_sale(sale.id)):
             self.window_.refresh()

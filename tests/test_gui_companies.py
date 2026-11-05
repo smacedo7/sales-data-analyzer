@@ -138,6 +138,7 @@ class FailureTests(StoredWindowTestCase):
         self.assertEqual(
             self.prompter.warnings, ["Unexpected error (RuntimeError). Your data is unchanged."]
         )
+        self.assertNotIn("boom", self.prompter.warnings[0])
         window.new_company()
         self.assertEqual(window.company_box.currentText(), "A (B)")
 

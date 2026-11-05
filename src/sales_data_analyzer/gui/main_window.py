@@ -164,6 +164,18 @@ class MainWindow(QMainWindow):
             self._safe_refresh()
             return None
 
+    def perform(self, action: Callable[[], object]) -> bool:
+        """Run action through `attempt` and return True when it finished without error."""
+        done = False
+
+        def run() -> None:
+            nonlocal done
+            action()
+            done = True
+
+        self.attempt(run)
+        return done
+
     def _safe_refresh(self) -> None:
         """Redraw, reporting (once) a failure of the redraw itself."""
         try:
@@ -239,7 +251,7 @@ class MainWindow(QMainWindow):
         values = self.prompter.company_form(current.company.name, current.company.sector)
         if values is None:
             return
-        if self.attempt(lambda: self.session.update_company(values.name, values.sector)):
+        if self.perform(lambda: self.session.update_company(values.name, values.sector)):
             self.refresh()
 
     # -- period ---------------------------------------------------------------------
@@ -247,10 +259,10 @@ class MainWindow(QMainWindow):
     def apply_period(self) -> None:
         """Select the days from the From date to the To date, both included."""
         start, end = to_date(self.start_edit.date()), to_date(self.end_edit.date())
-        if self.attempt(lambda: self.session.set_period(start, end) or True):
+        if self.perform(lambda: self.session.set_period(start, end)):
             self.refresh()
 
     def clear_period(self) -> None:
         """Select all data of the current company again."""
-        if self.attempt(lambda: self.session.clear_period() or True):
+        if self.perform(self.session.clear_period):
             self.refresh()

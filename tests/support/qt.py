@@ -18,6 +18,11 @@ def application() -> QApplication:
     return QApplication.instance() or QApplication(["tests"])
 
 
+class UnexpectedQuestion(BaseException):
+    """Raised for an unanswered question; a BaseException so the window's error
+    funnel (which catches Exception) can never hide it from the test."""
+
+
 class ScriptedPrompter:
     """Prompter that answers from queues and records every notice.
 
@@ -41,7 +46,7 @@ class ScriptedPrompter:
 
     def _next(self, kind: str) -> object:
         if not self.answers[kind]:
-            raise AssertionError(f"unexpected {kind} question")
+            raise UnexpectedQuestion(f"unexpected {kind} question")
         return self.answers[kind].popleft()
 
     def inform(self, text: str) -> None:

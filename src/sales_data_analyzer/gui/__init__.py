@@ -79,9 +79,31 @@ def run(argv: Sequence[str] | None = None, *, show_error=None, execute: bool = T
         if not execute:
             window.close()
             return 0
-        return application.exec()
+        previous_hook = sys.excepthook
+        sys.excepthook = _report_uncaught(window)
+        try:
+            return application.exec()
+        finally:
+            sys.excepthook = previous_hook
     finally:
         repository.close()
+
+
+def _report_uncaught(window):  # -> excepthook
+    """Return an excepthook that shows a failure that escaped every action handler.
+
+    Every handler already runs through MainWindow.attempt; this is a backstop so
+    an unforeseen error in a Qt slot is shown instead of only printed.
+    """
+    from .messages import describe_failure
+
+    def hook(kind, error, traceback) -> None:
+        if issubclass(kind, KeyboardInterrupt):
+            sys.__excepthook__(kind, error, traceback)
+            return
+        window.prompter.warn(describe_failure(error))
+
+    return hook
 
 
 def main() -> None:
