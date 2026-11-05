@@ -109,6 +109,20 @@ class PeriodTests(AnalysesTestCase):
         self.win.clear_period()
         self.assertTrue(self.session.selection.is_all)
 
+    def test_all_data_offers_the_span_of_the_sales_as_dates(self) -> None:
+        last = START + timedelta(days=9)
+        self.assertEqual(
+            (self.win.start_edit.date(), self.win.end_edit.date()),
+            (to_qdate(START), to_qdate(last)),
+        )
+        self.assertEqual(self.page.first_start.date(), to_qdate(START))
+        self.assertEqual(self.page.second_end.date(), to_qdate(last))
+
+    def test_report_panel_uses_a_fixed_pitch_font(self) -> None:
+        from PySide6.QtGui import QFontInfo
+
+        self.assertTrue(QFontInfo(self.page.output.font()).fixedPitch())
+
     def test_reversed_period_is_refused_and_keeps_the_selection(self) -> None:
         self.apply(START, START)
         self.apply(START + timedelta(days=2), START)

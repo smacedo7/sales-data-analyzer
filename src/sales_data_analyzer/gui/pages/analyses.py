@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from PySide6.QtGui import QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -28,7 +28,11 @@ def report_view() -> QPlainTextEdit:
     """Return a read-only monospace panel for terminal-formatted results."""
     view = QPlainTextEdit()
     view.setReadOnly(True)
-    view.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+    font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+    font.setFamilies(["Menlo", "Consolas", "DejaVu Sans Mono", "Courier New", font.family()])
+    font.setStyleHint(QFont.StyleHint.TypeWriter)
+    font.setFixedPitch(True)
+    view.setFont(font)
     view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
     return view
 
@@ -50,6 +54,7 @@ class AnalysesPage(Page):
     def __init__(self, window: MainWindow) -> None:
         """Build the view selector, the options and the result panel."""
         super().__init__(window)
+        self._company_shown = None
         self.view_box = QComboBox()
         for key, label in reports.ANALYSIS_VIEWS:
             self.view_box.addItem(label, key)
@@ -88,8 +93,19 @@ class AnalysesPage(Page):
         layout.addWidget(self.output, 1)
 
     def refresh(self) -> None:
-        """Clear the previous result and update the missing-day notice."""
+        """Clear the previous result and update the missing-day notice.
+
+        When another company is selected, both comparison periods start as the
+        period shown in the top bar.
+        """
         self.output.setPlainText(PROMPT)
+        if self.session.current is not self._company_shown:
+            self._company_shown = self.session.current
+            bar = self.window_
+            for start, end in ((self.first_start, self.first_end),
+                               (self.second_start, self.second_end)):  # fmt: skip
+                start.setDate(bar.start_edit.date())
+                end.setDate(bar.end_edit.date())
         missing = reports.missing_days(self.session) if self.session.current is not None else 0
         self.zero_box.setEnabled(bool(missing))
         if not missing:

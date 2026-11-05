@@ -1,6 +1,7 @@
 """Desktop window, user story 6: the level 3 charts drawn in the window and saved as PNG."""
 
 from datetime import date
+from itertools import pairwise
 from pathlib import Path
 import tempfile
 import unittest
@@ -48,6 +49,23 @@ class DrawTests(ChartsTestCase):
             page.note_label.text(),
             f"Estimate line: {data.forecast_title} (see the Forecast tab for its errors).",
         )
+
+    def test_charts_keep_their_height_and_stack_without_overlapping(self) -> None:
+        from sales_data_analyzer.gui.pages.charts import CHART_PIXELS_PER_INCH
+
+        page = self.page_for(daily_session(21))
+        self.win.show()
+        self.win.tabs.setCurrentWidget(page)
+        self.app.processEvents()
+        page.draw()
+        self.app.processEvents()
+        bottoms = []
+        for canvas in page.canvases:
+            self.assertEqual(canvas.height(), canvas.maximumHeight())  # fixed, not squeezed
+            self.assertGreaterEqual(canvas.height(), 2 * CHART_PIXELS_PER_INCH)
+            bottoms.append((canvas.y(), canvas.y() + canvas.height()))
+        for (_, end), (start, _) in pairwise(bottoms):
+            self.assertLessEqual(end, start)
 
     def test_short_history_draws_no_estimate_and_says_why(self) -> None:
         page = self.page_for(daily_session(5))

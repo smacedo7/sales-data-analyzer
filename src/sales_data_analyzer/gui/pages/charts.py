@@ -12,6 +12,8 @@ from ..main_window import MainWindow, Page
 
 PROMPT = "Press Refresh charts to draw the charts of the current selection."
 NO_FILE = "No file was written."
+CHART_PIXELS_PER_INCH = 90
+"""On-screen height per inch of figure, so charts scroll instead of shrinking."""
 
 
 class ChartsPage(Page):
@@ -80,10 +82,12 @@ class ChartsPage(Page):
         data, figures = built
         self._clear()
         for figure in figures:
+            figure.set_layout_engine("constrained")  # keep titles inside the widget
             canvas = FigureCanvasQTAgg(figure)
-            canvas.setMinimumHeight(int(figure.get_figheight() * 80))
+            canvas.setFixedHeight(int(figure.get_figheight() * CHART_PIXELS_PER_INCH))
             self._charts_layout.addWidget(canvas)
             self.canvases.append(canvas)
+        self._charts_layout.activate()  # grow the scrolled area before the next paint
         self.note_label.setText(self._note(data))
 
     def save(self) -> None:

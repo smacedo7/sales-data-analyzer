@@ -201,6 +201,10 @@ class MainWindow(QMainWindow):
         if selection.start is not None and selection.end is not None:
             self.start_edit.setDate(to_qdate(selection.start))
             self.end_edit.setDate(to_qdate(selection.end))
+        elif has_company and self.session.selected_sales().sales:
+            days = self.session.sales_over_time("day").rows  # all data: offer its span
+            self.start_edit.setDate(to_qdate(days[0].start))
+            self.end_edit.setDate(to_qdate(days[-1].end))
         self.selection_label.setText(reports.selection_text(self.session))
         for page in self.pages:
             page.refresh()
