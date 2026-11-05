@@ -69,6 +69,19 @@ class ContentTests(unittest.TestCase):
         self.assertEqual(cards.count('class="card"'), 6)
         self.assertEqual(cards.count("</tr><tr>"), 1)
 
+    def test_pdf_layout_fits_charts_to_the_page_width(self) -> None:
+        from PySide6.QtCore import QSizeF
+
+        from support.qt import application
+
+        application()
+        content = pdf_report.report_content(daily_session(21), MOMENT)
+        doc = pdf_report.document(content, QSizeF(680, 1000))
+        self.assertEqual(doc.pageSize(), QSizeF(680, 1000))
+        width = int(680 * pdf_report.PDF_CHART_SHARE)
+        self.assertEqual(doc.toHtml().count(f'width="{width}"'), 3)
+        self.assertIn(f'width="{pdf_report.PREVIEW_IMAGE_WIDTH}"', pdf_report.report_html(content))
+
     def test_suggested_file_name(self) -> None:
         self.assertEqual(
             pdf_report.suggested_name("Café Aurora (demo)", MOMENT),
@@ -105,6 +118,25 @@ class WriteTests(WindowTestCase):
             os.umask(mask)
             self.assertEqual(target.stat().st_mode & 0o777, 0o666 & ~mask)
         self.assertEqual(sorted(p.name for p in self.folder.iterdir()), ["report.pdf"])
+
+    def test_every_page_is_numbered(self) -> None:
+        from PySide6.QtGui import QPainter
+
+        target = self.folder / "report.pdf"
+        content = pdf_report.report_content(daily_session(21), MOMENT)
+        footers: list[str] = []
+        original = QPainter.drawText
+
+        def record(painter, *args):
+            if isinstance(args[-1], str):
+                footers.append(args[-1])
+            return original(painter, *args)
+
+        with mock.patch.object(QPainter, "drawText", record):
+            pdf_report.write_pdf(content, target)
+        pages = page_count(target)
+        self.assertGreaterEqual(pages, 2)
+        self.assertEqual(footers, [f"Página {n} de {pages}" for n in range(1, pages + 1)])
 
     def test_cancel_and_unwritable_folder_leave_no_file(self) -> None:
         win = self.app_window

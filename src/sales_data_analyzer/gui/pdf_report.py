@@ -118,7 +118,14 @@ def _table_html(table: reports.Table) -> str:
     return f'<table class="data" cellspacing="0" cellpadding="5" width="100%"><tr>{head}</tr>{rows}</table>'
 
 
-def report_html(content: ReportContent) -> str:
+PREVIEW_IMAGE_WIDTH = 620
+"""Chart width in the on-screen preview, in pixels."""
+
+PDF_CHART_SHARE = 0.92
+"""Share of the printable page width used by each chart in the PDF."""
+
+
+def report_html(content: ReportContent, image_width: int = PREVIEW_IMAGE_WIDTH) -> str:
     """Return the report as HTML; chart images are referenced as `chart:<kind>`."""
     cards = "".join(
         f'<td class="card"><span class="label">{escape(c.label)}</span><br>'
@@ -127,7 +134,8 @@ def report_html(content: ReportContent) -> str:
         for index, c in enumerate(content.cards)
     )
     charts = "".join(
-        f'<p align="center"><img src="chart:{kind}" width="620"></p>' for kind, _ in content.charts
+        f'<p align="center"><img src="chart:{kind}" width="{image_width}"></p>'
+        for kind, _ in content.charts
     )
     note = f'<p class="note">{escape(content.forecast_note)}</p>' if content.forecast_note else ""
     return f"""
@@ -159,8 +167,13 @@ p.note {{ color: #5f6b76; font-size: 9pt; }}
 """
 
 
-def document(content: ReportContent):  # -> QTextDocument
-    """Return a QTextDocument of the report with its chart images attached."""
+def document(content: ReportContent, page_size=None):  # -> QTextDocument
+    """Return a QTextDocument of the report with its chart images attached.
+
+    With `page_size` (a QSizeF in document pixels) the document is laid out on
+    pages of that size and every chart fits the page width; without it, it is
+    laid out for the on-screen preview.
+    """
     from PySide6.QtCore import QUrl
     from PySide6.QtGui import QImage, QTextDocument
 
@@ -169,8 +182,44 @@ def document(content: ReportContent):  # -> QTextDocument
         doc.addResource(
             QTextDocument.ResourceType.ImageResource, QUrl(f"chart:{kind}"), QImage.fromData(png)
         )
-    doc.setHtml(report_html(content))
+    if page_size is None:
+        doc.setHtml(report_html(content))
+        return doc
+    doc.setPageSize(page_size)  # print_ then keeps this layout instead of guessing one
+    doc.setHtml(report_html(content, int(page_size.width() * PDF_CHART_SHARE)))
     return doc
+
+
+FOOTER_HEIGHT = 28
+"""Space reserved at the bottom of each PDF page for 'Página X de N', in pixels."""
+
+
+def _paint_pages(writer, content: ReportContent) -> None:
+    """Lay the report out on the writer's pages and number every page."""
+    from PySide6.QtCore import QRectF, QSizeF, Qt
+    from PySide6.QtGui import QColor, QPainter
+
+    page = writer.pageLayout().paintRectPixels(writer.resolution())
+    width, height = page.width(), page.height() - FOOTER_HEIGHT
+    doc = document(content, QSizeF(width, height))
+    pages = doc.pageCount()
+    painter = QPainter(writer)
+    try:
+        for index in range(pages):
+            if index:
+                writer.newPage()
+            painter.save()
+            painter.translate(0, -index * height)
+            doc.drawContents(painter, QRectF(0, index * height, width, height))
+            painter.restore()
+            painter.setPen(QColor("#5f6b76"))
+            painter.drawText(
+                QRectF(0, height, width, FOOTER_HEIGHT),
+                int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
+                t("report.page", page=index + 1, pages=pages),
+            )
+    finally:
+        painter.end()
 
 
 def write_pdf(content: ReportContent, path: str | Path) -> Path:
@@ -201,7 +250,7 @@ def write_pdf(content: ReportContent, path: str | Path) -> Path:
                 QPageLayout.Unit.Millimeter,
             )
         )
-        document(content).print_(writer)
+        _paint_pages(writer, content)
         del writer  # flush and close the file before moving it
         if Path(temporary).stat().st_size == 0:
             raise OSError("empty PDF")

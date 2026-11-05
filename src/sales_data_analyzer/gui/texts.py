@@ -286,6 +286,7 @@ PT_BR: dict[str, str] = {
     "report.all_data": "todo o histórico",
     "report.range": "{start} a {end}",
     "report.file_prefix": "relatorio-vendas",
+    "report.page": "Página {page} de {pages}",
     # -- forms ------------------------------------------------------------------
     "form.company.new": "Nova empresa",
     "form.company.edit": "Editar empresa",
@@ -612,6 +613,7 @@ EN: dict[str, str] = {
     "report.all_data": "whole history",
     "report.range": "{start} to {end}",
     "report.file_prefix": "sales-report",
+    "report.page": "Page {page} of {pages}",
     "form.company.new": "New company",
     "form.company.edit": "Edit company",
     "form.company.name": "Name",
