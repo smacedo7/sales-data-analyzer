@@ -172,3 +172,38 @@ class SafetyTests(WindowTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DemoJourneyTests(StoredWindowTestCase):
+    """The guided demonstration flow, end to end, over a temporary database."""
+
+    def test_demo_to_pdf_journey_in_portuguese(self) -> None:
+        import tempfile
+
+        from PySide6.QtWidgets import QAbstractButton, QLabel
+
+        win = self.open_window()
+        win.show()
+        win.page("home").demo_button.click()
+        self.assertIs(win.current_page, win.page("overview"))
+        for key in ("analyses", "forecast", "charts", "report"):
+            win.go(key)
+            self.app.processEvents()
+        page = win.page("forecast")
+        page.compare_button.click()
+        self.assertIn("Menor erro nesta avaliação", "\n".join(page.shown.notes))
+        charts = win.page("charts")
+        for kind in ("daily", "monthly", "products", "weekday"):
+            charts.choose(kind)
+            self.assertIsNotNone(charts.chart)
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        target = Path(folder.name) / "demo.pdf"
+        self.prompter.queue("save_pdf", target)
+        win.page("report").export()
+        self.assertEqual(target.read_bytes()[:5], b"%PDF-")
+        self.assertEqual(self.prompter.warnings, [])
+        english = {"Revenue", "Sales", "Company", "Products", "Import", "Delete", "Forecast"}
+        texts = [w.text() for w in win.findChildren(QLabel) + win.findChildren(QAbstractButton)]
+        self.assertFalse([text for text in texts if text in english])
+        self.assertEqual(len(self.reopen().workspaces[0].products), 6)

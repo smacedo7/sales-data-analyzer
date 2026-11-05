@@ -29,10 +29,10 @@ synthetic-data examples.
   (pandas, exact `Decimal` totals); period comparison; a rolling-origin
   comparison of five forecast methods against baselines; text bar charts and PNG
   charts (Matplotlib).
-- Level 4: PySide6 desktop window with company, catalog, sales, CSV import,
-  period, analysis, forecast and chart tabs over the same SQLite database.
-
-PDF reports remain planned.
+- Level 4: PySide6 desktop window in Brazilian Portuguese over the same SQLite
+  database: guided home with demo data, overview cards, catalog, sales, CSV
+  import, periods, analyses, forecast comparison, explorable charts (zoom, pan,
+  hover values) and a PDF report.
 
 ## Getting Started
 
@@ -72,27 +72,40 @@ uv run sales-data-analyzer-desktop
 ```
 
 The window opens the same database file as the terminal menu (or the one given
-with `--database`) and shows it in the status bar. The top bar selects, creates
-and edits companies and applies a period (both days included) or all data.
-The tabs are:
+with `--database`) and shows it in the status bar. Its texts are in Brazilian
+Portuguese; every visible text lives in `gui/texts.py` (an English catalog with
+the same keys is ready), together with the Brazilian number and date formats
+(`1.310,00`, `05/01/2026`).
 
-| Tab | What it does |
+A side navigation leads to these pages:
+
+| Page | What it does |
 | --- | --- |
-| Catalog | register, edit and delete products (only products no sale uses) |
-| Sales | sales of the selection; record a sale with several items; import a CSV file; delete a sale |
-| Analyses | financial summary, products, sales by day/week/month, weekday profile, categories, two-period comparison |
-| Forecast | level 2 linear forecast and the comparison of forecast methods; pick the method behind the estimates |
-| Charts | daily revenue (with the comparison estimate), monthly revenue and top products drawn in the window; save them as PNG |
+| Início (Home) | company cards, new company and **Load demo data** (a café with six weeks of fictitious sales, imported through the normal CSV path) |
+| Visão geral (Overview) | colored indicator cards (revenue, cost, gross profit, margin, average order, sales) and the top products |
+| Produtos (Products) | register, edit and delete products (only products no sale uses) |
+| Vendas (Sales) | sales of the period; record a sale with several items; import a CSV file; delete a sale |
+| Análises (Analyses) | financial summary, products, sales by day/week/month, weekday, categories, two-period comparison |
+| Previsões (Forecasts) | comparison of forecast methods against baselines (choose the method behind the estimates) and the level 2 linear forecast |
+| Gráficos (Charts) | one chart at a time — daily revenue with the estimate, monthly revenue, top products or weekday averages — with zoom, pan, the exact value under the mouse and PNG export |
+| Relatório PDF (PDF report) | preview and export of an A4 PDF with company, period, indicators, top products and charts |
+
+The header shows the company and the period, with presets (all data, last 30
+days, last month with sales) and a date range. Screens without data explain
+the next step with a button, and every refusal (duplicate code, invalid file
+line, product in use, short history, storage failure) is a Portuguese sentence;
+nothing is changed when an action is refused.
 
 The window does not compute any figure itself: every number comes from the
-application services and is worded by the same formatter as the terminal, so
-both interfaces show identical results. Amounts are typed as plain decimals
-(`10.50`) and stored exactly. Refusals (duplicate IDs, invalid files, products
-in use, short histories) are explained in a dialog and change nothing; deleting,
-replacing a chart file or treating missing days as zero always asks first, with
-No as the default. Close the window to exit; every confirmed change is already
-saved. Running the window and the terminal on the same file at the same time is
-detected as a change by another copy, and the second program asks to restart.
+application services (`SalesSession`, the analyses, the forecast comparison and
+`chart_data()`), and the window only formats it for display. Amounts are typed as
+plain decimals (`10.50`) and stored exactly. Deleting, replacing a file or
+treating missing days as zero always asks first, with No as the default. The PDF
+is written with Qt's own `QPdfWriter` (no extra dependency) to a temporary file
+that replaces the target only when complete. Close the window to exit; every
+confirmed change is already saved. Running the window and the terminal on the
+same file at the same time is detected as a change by another copy, and the
+second program asks to restart.
 
 ## Running the Terminal Menu
 
@@ -183,8 +196,10 @@ rollback after injected failures, locked and invalid files, always on temporary
 databases), maintenance use cases, exploration totals against the financial
 analysis, each forecast method on hand-made series, rolling-origin leakage
 (a spy method never sees its evaluation days), text and PNG charts, the desktop
-window (headless Qt with a scripted prompter: every tab, refusal wording, real
-button clicks, rollback after storage failures and reopening the database), the application layer, terminal parsing, formatting and scripted
+window (headless Qt with a scripted prompter: every page, Portuguese texts and
+refusal wording, empty states, demo data, chart type/period/zoom/hover/resizing,
+the PDF report, real button clicks, rollback after storage failures and
+reopening the database), the application layer, terminal parsing, formatting and scripted
 menu sessions, an end-to-end run of the real entry point, CSV validation, atomic import, ID preservation, domain validation, exact accounting, empty/zero/loss cases, product
 identity, ranking ties, temporal ordering, holdout isolation, baseline errors,
 missing days, timezone conversion and invalid forecast inputs.
@@ -235,7 +250,7 @@ src/sales_data_analyzer/
 ├── exploration/   # Level 3: grouped summaries with pandas and exact Decimal totals
 ├── charts/        # Level 3: text bar charts and Matplotlib PNG files
 ├── cli/           # Terminal menu, command line, input parsing, output formatting
-└── gui/           # Level 4: PySide6 window, tabs, forms, prompter and error funnel
+└── gui/           # Level 4: PySide6 window, pages, texts catalog, charts, PDF report
 examples/
 ├── import_and_analyze.py
 ├── analysis_and_forecast.py
@@ -411,7 +426,7 @@ extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 - [x] Level 2: interactive terminal menu over the existing operations (in memory).
 - [x] Continuous integration and Ruff lint checks.
 - [x] Implement descriptive temporal analyses and charts (terminal and PNG).
-- [ ] Add reporting and PDF export.
+- [x] Add reporting and PDF export (level 4 desktop window).
 - [x] Level 3: SQLite persistence with exact amounts and atomic writes, data
   maintenance, temporal exploration, forecast method comparison and charts.
 - [x] Level 4: PySide6 desktop interface over the same services and database.
