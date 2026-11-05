@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 sales-data-analyzer = "sales_data_analyzer:main"
+sales-data-analyzer-desktop = "sales_data_analyzer:desktop_main"
 
 [build-system]
 requires = ["uv_build>=0.11.27,<0.12.0"]
