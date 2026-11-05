@@ -7,18 +7,33 @@ drive the menu in tests exactly as a person would at the keyboard.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
+from pathlib import Path
 
 from sales_data_analyzer.application import (
     ApplicationError,
     CatalogConflictError,
     DuplicateSaleError,
+    InsufficientHistoryError,
     ItemInput,
     NoSalesInSelectionError,
+    PersistenceError,
+    ProductInUseError,
     SalesSession,
+    Selection,
+    StorageLimitError,
 )
+from sales_data_analyzer.charts import bar_lines
+from sales_data_analyzer.exploration import WEEKDAY_NAMES
 from sales_data_analyzer.importing import ImportValidationError
 
 from .formatting import (
+    format_categories,
+    format_comparison,
+    format_comparison_estimates,
+    format_period_comparison,
+    format_temporal,
+    format_weekdays,
     explain_forecast_error,
     format_financial,
     format_forecast,
@@ -27,6 +42,7 @@ from .formatting import (
     format_import_summary,
     format_money,
     format_products,
+    format_sales,
     format_scope,
     is_missing_days_error,
     plural,
@@ -44,6 +60,7 @@ from .parsing import (
 )
 
 DATA_NOTICE = "Data is kept in memory only and is lost when you exit."
+SAVED_NOTICE = "Data is saved in {location}."
 NEEDS_COMPANY = "Not done: create or select a company first."
 MAX_HORIZON = 365
 DEFAULT_HORIZON = 7
@@ -90,19 +107,41 @@ class TerminalMenu:
             _Option(10, "Financial analysis", self._financial_analysis),
             _Option(11, "Product analysis", self._product_analysis),
             _Option(12, "Revenue forecast", self._forecast),
+            _Option(13, "Edit company", self._edit_company),
+            _Option(14, "Edit product", self._edit_product),
+            _Option(15, "Delete product", self._delete_product),
+            _Option(16, "List sales", self._list_sales),
+            _Option(17, "Delete sale", self._delete_sale),
+            _Option(18, "Sales over time", self._sales_over_time),
+            _Option(19, "Compare periods", self._compare_periods),
+            _Option(20, "Compare forecast methods", self._compare_forecasts),
+            _Option(21, "Text charts", self._text_charts),
+            _Option(22, "Save chart images", self._save_charts),
         )
 
     # -- loop -----------------------------------------------------------------
 
+    @property
+    def _location(self) -> str | None:
+        """Return where the session's data is stored, or None in memory mode."""
+        repository = self.session.repository
+        return None if repository is None else repository.location
+
     def run(self) -> int:
-        """Run until the user confirms exit or input ends; return exit status 0."""
-        self._say("Sales Data Analyzer - level 2 (terminal)")
-        self._say(DATA_NOTICE)
+        """Run until the user exits or input ends; return exit status 0.
+
+        In memory mode exit asks for confirmation because data would be lost; with
+        a database every change is already saved, so exit is immediate.
+        """
+        self._say_start()
         try:
             while True:
                 self._show_menu()
                 choice = self._input("Choose an option: ").strip()
                 if choice == "0":
+                    if self._location is not None:
+                        self._say(SAVED_NOTICE.format(location=self._location))
+                        return 0
                     if self._confirm_exit():
                         return 0
                     continue
@@ -113,8 +152,24 @@ class TerminalMenu:
                 self._dispatch(option)
         except EOFError, KeyboardInterrupt:
             self._say("")
-            self._say(DATA_NOTICE.replace("is lost when you exit", "was discarded"))
+            if self._location is not None:
+                self._say(SAVED_NOTICE.format(location=self._location))
+            else:
+                self._say(DATA_NOTICE.replace("is lost when you exit", "was discarded"))
             return 0
+
+    def _say_start(self) -> None:
+        """Print the title and where data lives (with stored counts for a database)."""
+        if self._location is None:
+            self._say("Sales Data Analyzer - level 2 (terminal)")
+            self._say(DATA_NOTICE)
+            return
+        workspaces = self.session.workspaces
+        products = sum(len(w.products) for w in workspaces)
+        sales = sum(len(w.sales.sales) for w in workspaces)
+        self._say("Sales Data Analyzer - level 3 (terminal)")
+        self._say(f"Database: {self._location}")
+        self._say(f"Loaded {len(workspaces)} company(ies), {products} product(s), {sales} sale(s).")
 
     def _show_menu(self) -> None:
         """Print the header with the current company and the numbered options."""
@@ -161,6 +216,8 @@ class TerminalMenu:
             raise
         except ImportValidationError as error:
             self._say(_describe_import_error(error))
+        except (PersistenceError, StorageLimitError) as error:
+            self._say(f"Not done: {error}. Nothing was changed.")
         except (ApplicationError, ValueError, TypeError) as error:
             self._say(f"Not done: {error}.")
         except Exception as error:  # the menu must survive any failure
@@ -352,6 +409,259 @@ class TerminalMenu:
         for line in format_forecast(result, scope):
             self._say(line)
 
+    # -- maintenance (level 3) ------------------------------------------------------
+
+    def _edit_company(self) -> None:
+        """Ask for a new name and sector (blank keeps each) and apply both together."""
+        self.session.require_current()
+        name = self._ask("New name (blank = keep): ", _parse_optional_text)
+        sector = self._ask("New sector (blank = keep): ", _parse_optional_text)
+        company = self.session.update_company(name, sector).company
+        self._say(f"Company updated: {company.name} ({company.sector})")
+
+    def _edit_product(self) -> None:
+        """Ask for a product and its new name and category (blank keeps each)."""
+        workspace = self.session.require_current()
+        product = workspace.find_product(self._ask("Product ID: ", parse_text))
+        if product is None:
+            self._say("Product not found.")
+            return
+        name = self._ask("New name (blank = keep): ", _parse_optional_text)
+        category = self._ask("New category (blank = keep): ", _parse_optional_text)
+        product = workspace.update_product(product.id, name, category)
+        self._say(f"Product updated: {product.id} {product.name} ({product.category})")
+
+    def _delete_product(self) -> None:
+        """Delete an unsold product after confirmation."""
+        workspace = self.session.require_current()
+        product = workspace.find_product(self._ask("Product ID: ", parse_text))
+        if product is None:
+            self._say("Product not found.")
+            return
+        in_use = workspace.sales_with_product(product.id)
+        if in_use:
+            self._say(_in_use_message(in_use))
+            return
+        if not self._ask(f"Delete product {product.id} {product.name}? [y/N] ", parse_yes_no):
+            self._say("Nothing was deleted.")
+            return
+        try:
+            workspace.delete_product(product.id)
+        except ProductInUseError as error:
+            self._say(_in_use_message(error.sale_count))
+            return
+        self._say(f"Product deleted: {product.id}")
+
+    def _list_sales(self) -> None:
+        """Print the sales of the active selection."""
+        workspace = self.session.require_current()
+        for line in format_sales(workspace.list_sales(self.session.selected_sales())):
+            self._say(line)
+
+    def _delete_sale(self) -> None:
+        """Delete a sale and its items after confirmation."""
+        workspace = self.session.require_current()
+        sale = workspace.find_sale(self._ask("Sale ID: ", parse_text))
+        if sale is None:
+            self._say("Sale not found.")
+            return
+        question = (
+            f"Delete sale {sale.id} ({plural(len(sale.items), 'item')}, "
+            f"total {format_money(sale.calculate_total())})? [y/N] "
+        )
+        if not self._ask(question, parse_yes_no):
+            self._say("Nothing was deleted.")
+            return
+        workspace.delete_sale(sale.id)
+        self._say(f"Sale deleted: {sale.id}")
+
+    # -- exploration (level 3) ------------------------------------------------------
+
+    def _sales_over_time(self) -> None:
+        """Show the selection grouped by day, week, month, weekday or category."""
+        self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say("No sales in the current selection.")
+            return
+        choice = self._ask(
+            "Group by: 1 day, 2 week, 3 month, 4 weekday, 5 category: ",
+            lambda text: parse_positive_int(text, maximum=5),
+        )
+        scope = self._scope()
+        if choice == 5:
+            lines = format_categories(self.session.category_totals(), scope)
+        elif choice == 4:
+            zero = self._ask_zero_days()
+            lines = format_weekdays(
+                self.session.weekday_profile(missing_days="zero" if zero else "reject"),
+                scope,
+                zero_filled=zero,
+                days_are_utc=self.session.data_is_aware(),
+            )
+        else:
+            granularity = ("day", "week", "month")[choice - 1]
+            zero = self._ask_zero_days()
+            summary = self.session.sales_over_time(
+                granularity, missing_days="zero" if zero else "reject"
+            )
+            lines = format_temporal(summary, scope)
+        for line in lines:
+            self._say(line)
+
+    def _ask_zero_days(self) -> bool:
+        """Ask whether days without sales count as zero, only when such days exist."""
+        missing = self.session.sales_over_time("day").missing_days
+        if not missing:
+            return False
+        self._say(f"{plural(missing, 'day')} between the first and last sale have no sales.")
+        return self._ask(
+            "Treat them as zero revenue? Only answer yes if your records are complete. [y/N] ",
+            parse_yes_no,
+        )
+
+    def _compare_periods(self) -> None:
+        """Ask two periods and compare their totals; the active selection is kept."""
+        self.session.require_current()
+        if self.session.data_is_aware():
+            self._say("These sales have time zone offsets: dates are interpreted in UTC.")
+        first = Selection(
+            self._ask("First period start (YYYY-MM-DD): ", parse_date),
+            self._ask("First period end (YYYY-MM-DD, included): ", parse_date),
+        )
+        second = Selection(
+            self._ask("Second period start (YYYY-MM-DD): ", parse_date),
+            self._ask("Second period end (YYYY-MM-DD, included): ", parse_date),
+        )
+        comparison = self.session.compare_periods(first, second)
+        for line in format_period_comparison(comparison, first.describe(), second.describe()):
+            self._say(line)
+
+    def _compare_forecasts(self) -> None:
+        """Compare forecast methods, let the user pick one, then show its estimates."""
+        workspace = self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say(explain_forecast_error(NoSalesInSelectionError()))
+            return
+        horizon = self._ask(
+            f"Days to forecast (1-{MAX_HORIZON}, blank = {DEFAULT_HORIZON}): ", _parse_horizon
+        )
+        offset = None
+        if self.session.data_is_aware():
+            self._say("These sales have time zone offsets; days are grouped by a UTC offset.")
+            offset = self._ask("UTC offset (+HH:MM or -HH:MM, blank = +00:00): ", _parse_offset)
+        options = {"horizon": horizon, "utc_offset": offset, "missing_days": "reject"}
+        try:
+            result = self.session.compare_forecasts(**options)
+        except InsufficientHistoryError as error:
+            self._say(f"Not done: {error}.")
+            return
+        except ValueError as error:
+            if not is_missing_days_error(error):
+                raise
+            self._say(explain_forecast_error(error))
+            question = (
+                "Treat missing days as zero revenue? Only answer yes if your records "
+                "are complete. [y/N] "
+            )
+            if not self._ask(question, parse_yes_no):
+                self._say("Forecast cancelled.")
+                return
+            options["missing_days"] = "zero"
+            result = self.session.compare_forecasts(**options)
+        scope = f"{workspace.company.name} - {self.session.selection.describe()}"
+        for line in format_comparison(result, scope):
+            self._say(line)
+        number = self._ask(
+            f"Method for the estimates (number, blank = {result.chosen_title}): ",
+            lambda text: (
+                None if not text.strip() else parse_positive_int(text, maximum=len(result.scores))
+            ),
+        )
+        if number is not None and result.scores[number - 1].method_key != result.chosen_key:
+            result = self.session.compare_forecasts(
+                **options, method=result.scores[number - 1].method_key
+            )
+        for line in format_comparison_estimates(result):
+            self._say(line)
+
+    # -- charts (level 3) -----------------------------------------------------------
+
+    def _top_products(self, limit: int = 10) -> list[tuple[str, Decimal]]:
+        """Return (ID and name, revenue) of the best-selling products in the selection."""
+        result = self.session.run_product_analysis()
+        names = {p.id: p.name for p in self.session.require_current().products}
+        rows = {row.product_id: row.revenue for row in result.products}
+        return [
+            (f"{key} {names.get(key, '?')}", rows[key]) for key in result.revenue_ranking[:limit]
+        ]
+
+    def _text_charts(self) -> None:
+        """Print one bar chart of the selection in the terminal."""
+        self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say("No sales in the current selection.")
+            return
+        choice = self._ask(
+            "Chart: 1 monthly revenue, 2 weekday profile, 3 top products: ",
+            lambda text: parse_positive_int(text, maximum=3),
+        )
+        scope = self._scope()
+        if choice == 1:
+            title = f"Monthly revenue - {scope}"
+            rows = [(r.label, r.revenue) for r in self.session.sales_over_time("month").rows]
+        elif choice == 2:
+            title = f"Average revenue per weekday (days with sales) - {scope}"
+            rows = [
+                (WEEKDAY_NAMES[p.weekday][:3], p.average_revenue or Decimal(0))
+                for p in self.session.weekday_profile()
+            ]
+        else:
+            title = f"Top products by revenue - {scope}"
+            rows = self._top_products()
+        self._say(title)
+        for line in bar_lines(rows, value_text=format_money):
+            self._say(line)
+
+    def _save_charts(self) -> None:
+        """Write PNG charts of the selection to a folder, asking before replacing files."""
+        from sales_data_analyzer.charts.images import ChartInputs, ChartWriteError, save_charts
+
+        workspace = self.session.require_current()
+        if not self.session.selected_sales().sales:
+            self._say("No sales in the current selection.")
+            return
+        folder = self._ask("Folder (blank = reports): ", _parse_folder)
+        forecast: tuple = ()
+        forecast_title = None
+        try:
+            comparison = self.session.compare_forecasts()
+        except ValueError as error:
+            self._say(f"Forecast not drawn: {explain_forecast_error(error)}")
+        else:
+            forecast = tuple((p.day, p.revenue) for p in comparison.future)
+            forecast_title = comparison.chosen_title
+        inputs = ChartInputs(
+            title=f"{workspace.company.name} - {self.session.selection.describe()}",
+            daily=tuple((r.start, r.revenue) for r in self.session.sales_over_time("day").rows),
+            monthly=tuple((r.label, r.revenue) for r in self.session.sales_over_time("month").rows),
+            top_products=tuple(self._top_products()),
+            forecast=forecast,
+            forecast_title=forecast_title,
+        )
+
+        def replace(path: Path) -> bool:
+            return self._ask(f"Replace {path.name}? [y/N] ", parse_yes_no)
+
+        try:
+            written = save_charts(inputs, folder, replace=replace)
+        except ChartWriteError:
+            self._say("Not done: the folder cannot be written. No file was created.")
+            return
+        for path in written:
+            self._say(f"Saved: {path}")
+        if not written:
+            self._say("No file was written.")
+
     # -- prompt helpers ---------------------------------------------------------
 
     def _say(self, line: str) -> None:
@@ -365,6 +675,22 @@ class TerminalMenu:
                 return parser(self._input(prompt))
             except InputError as error:
                 self._say(f"Invalid value: {error}.")
+
+
+def _parse_optional_text(text: str) -> str | None:
+    """Return trimmed text, or None when blank (keep the current value)."""
+    value = text.strip()
+    return value or None
+
+
+def _in_use_message(sale_count: int) -> str:
+    """Explain why a sold product cannot be deleted."""
+    return f"Not done: this product appears in {plural(sale_count, 'sale')} and cannot be deleted."
+
+
+def _parse_folder(text: str) -> Path:
+    """Return the chart folder; blank means ./reports."""
+    return Path("reports") if not text.strip() else parse_path(text)
 
 
 def _parse_horizon(text: str) -> int:

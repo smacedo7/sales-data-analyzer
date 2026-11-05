@@ -1,4 +1,4 @@
-"""In-memory session state shared by every user interface."""
+"""Session state shared by every user interface, optionally backed by a repository."""
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
@@ -7,7 +7,25 @@ from typing import Literal
 from sales_data_analyzer.analysis import AnalysisResult, FinancialAnalysis, ProductAnalysis
 from sales_data_analyzer.domain.company import Company
 from sales_data_analyzer.domain.sales_dataset import SalesDataset
-from sales_data_analyzer.forecasting import ForecastResult, RevenueForecaster, daily_revenue
+from sales_data_analyzer.domain.validation import validate_non_empty_string
+from sales_data_analyzer.exploration import (
+    CategoryTotal,
+    PeriodComparison,
+    TemporalSummary,
+    WeekdayProfile,
+    category_totals,
+    compare_periods,
+    temporal_summary,
+    weekday_profile,
+)
+from sales_data_analyzer.forecasting import (
+    MIN_HISTORY_DAYS,
+    ComparisonResult,
+    ForecastResult,
+    RevenueForecaster,
+    compare_methods,
+    daily_revenue,
+)
 
 from .errors import (
     CompanyNotFoundError,
@@ -17,6 +35,7 @@ from .errors import (
     NoCompanySelectedError,
     NoSalesInSelectionError,
 )
+from .repository import SalesRepository
 from .workspace import CompanyWorkspace
 
 MIN_TRAINING_DAYS = 5
@@ -58,13 +77,38 @@ class Selection:
 
 
 class SalesSession:
-    """Companies and selection for one program run; nothing is persisted."""
+    """Companies and selection for one program run.
 
-    def __init__(self) -> None:
+    Without a repository nothing is persisted (level 2). With one, companies and
+    their data are stored as they change; the selection is never stored.
+    """
+
+    def __init__(self, repository: SalesRepository | None = None) -> None:
         """Start an empty session with no selected company."""
+        if repository is not None and not isinstance(repository, SalesRepository):
+            raise TypeError("repository must be a SalesRepository")
+        self._repository = repository
         self._workspaces: list[CompanyWorkspace] = []
         self._current: CompanyWorkspace | None = None
         self._selection = Selection()
+
+    @classmethod
+    def open(cls, repository: SalesRepository) -> "SalesSession":
+        """Return a session holding every company stored in repository, none selected.
+
+        Errors raised by the repository's load (for example invalid stored rows)
+        propagate unchanged.
+        """
+        session = cls(repository)
+        session._workspaces = [
+            CompanyWorkspace.from_stored(stored, repository) for stored in repository.load()
+        ]
+        return session
+
+    @property
+    def repository(self) -> SalesRepository | None:
+        """Return the repository storing this session's data, or None in memory mode."""
+        return self._repository
 
     @property
     def workspaces(self) -> tuple[CompanyWorkspace, ...]:
@@ -93,14 +137,40 @@ class SalesSession:
         Names are unique ignoring case and surrounding spaces. Raise
         DuplicateCompanyError for a used name and the Company validation errors
         (TypeError/ValueError) for invalid values; the session is unchanged then.
+        With a repository the company is stored first (PersistenceError on failure).
         """
         company = Company(name, sector)
         key = company.name.casefold()
         if any(w.company.name.casefold() == key for w in self._workspaces):
             raise DuplicateCompanyError()
-        workspace = CompanyWorkspace(company)
+        workspace = CompanyWorkspace(company, self._repository)
+        if self._repository is not None:
+            self._repository.add_company(company)
         self._workspaces.append(workspace)
         self._select(workspace)
+        return workspace
+
+    def update_company(self, name: str | None, sector: str | None) -> CompanyWorkspace:
+        """Rename and/or change the sector of the selected company; None keeps a value.
+
+        Both values are validated before anything is written (TypeError/ValueError).
+        Raise DuplicateCompanyError when another company already uses the name
+        (ignoring case and surrounding spaces). With a repository the change is
+        stored first; on PersistenceError the company keeps its old values.
+        """
+        workspace = self.require_current()
+        company = workspace.company
+        new_name = validate_non_empty_string(company.name if name is None else name, "name")
+        new_sector = validate_non_empty_string(
+            company.sector if sector is None else sector, "sector"
+        )
+        key = new_name.casefold()
+        if any(w is not workspace and w.company.name.casefold() == key for w in self._workspaces):
+            raise DuplicateCompanyError()
+        if self._repository is not None:
+            self._repository.update_company(company, new_name, new_sector)
+        company.name = new_name
+        company.sector = new_sector
         return workspace
 
     def select_company(self, index: int) -> CompanyWorkspace:
@@ -145,8 +215,13 @@ class SalesSession:
         Period days are local calendar days for naive data and UTC days for
         data with offsets (imports normalize offsets to UTC).
         """
+        return self._sales_in(self._selection)
+
+    def _sales_in(self, selection: Selection) -> SalesDataset:
+        """Return the current company's sales inside selection (see selected_sales)."""
         workspace = self.require_current()
-        selection = self._selection
+        if not isinstance(selection, Selection):
+            raise TypeError("selection must be a Selection")
         if selection.start is None or selection.end is None:
             return workspace.sales
         zone = timezone.utc if self.data_is_aware() else None
@@ -163,6 +238,62 @@ class SalesSession:
     def run_product_analysis(self) -> AnalysisResult:
         """Run the existing ProductAnalysis on the selected sales."""
         return ProductAnalysis().run(self.selected_sales())
+
+    # -- exploration ----------------------------------------------------------------
+
+    def _day_zone(self) -> timezone | None:
+        """Return UTC for data with offsets (days are UTC days), None for naive data."""
+        return timezone.utc if self.data_is_aware() else None
+
+    def sales_over_time(
+        self,
+        granularity: Literal["day", "week", "month"],
+        *,
+        missing_days: Literal["reject", "zero"] = "reject",
+    ) -> TemporalSummary:
+        """Group the selected sales by day, ISO week or month (exact totals).
+
+        Raise NoSalesInSelectionError for an empty selection.
+        """
+        data = self._require_selected_sales()
+        return temporal_summary(
+            data, granularity, missing_days=missing_days, timezone=self._day_zone()
+        )
+
+    def weekday_profile(
+        self, *, missing_days: Literal["reject", "zero"] = "reject"
+    ) -> tuple[WeekdayProfile, ...]:
+        """Return revenue per weekday of the selected sales, Monday first.
+
+        Raise NoSalesInSelectionError for an empty selection.
+        """
+        data = self._require_selected_sales()
+        return weekday_profile(data, missing_days=missing_days, timezone=self._day_zone())
+
+    def category_totals(self) -> tuple[CategoryTotal, ...]:
+        """Return revenue, cost and gross profit per catalog category of the selection.
+
+        Raise NoSalesInSelectionError for an empty selection.
+        """
+        data = self._require_selected_sales()
+        categories = {p.id: p.category for p in self.require_current().products}
+        return category_totals(data, categories)
+
+    def compare_periods(self, first: Selection, second: Selection) -> PeriodComparison:
+        """Compare two periods of the current company; the active selection is unchanged.
+
+        Either period may be empty (its totals are zero and ratios against it None).
+        """
+        return compare_periods(self._sales_in(first), self._sales_in(second))
+
+    def _require_selected_sales(self) -> SalesDataset:
+        """Return the selected sales or raise NoSalesInSelectionError when there are none."""
+        data = self.selected_sales()
+        if not data.sales:
+            raise NoSalesInSelectionError()
+        return data
+
+    # -- forecast -------------------------------------------------------------------
 
     def run_forecast(
         self,
@@ -194,4 +325,37 @@ class SalesSession:
                 raise InsufficientHistoryError(available, required)
         return RevenueForecaster().forecast(
             data, horizon=horizon, test_days=test_days, missing_days=missing_days, timezone=zone
+        )
+
+    def compare_forecasts(
+        self,
+        *,
+        horizon: int = 7,
+        missing_days: Literal["reject", "zero"] = "reject",
+        utc_offset: timedelta | None = None,
+        method: str | None = None,
+    ) -> ComparisonResult:
+        """Compare the forecast methods on the selected sales and forecast horizon days.
+
+        Days follow `run_forecast` (UTC offset grouping for data with offsets). Raise
+        NoSalesInSelectionError for an empty selection and InsufficientHistoryError
+        below 12 calendar days. The missing-day refusal and other comparison
+        ValueErrors propagate unchanged. The level 2 forecast is not affected.
+        """
+        data = self.selected_sales()
+        if not data.sales:
+            raise NoSalesInSelectionError()
+        zone = None
+        if self.data_is_aware():
+            zone = timezone(utc_offset if utc_offset is not None else timedelta(0))
+        filled = daily_revenue(data, missing_days="zero", timezone=zone)
+        if len(filled) < MIN_HISTORY_DAYS:
+            raise InsufficientHistoryError(len(filled), MIN_HISTORY_DAYS)
+        history = daily_revenue(data, missing_days=missing_days, timezone=zone)
+        sale_days = {
+            sale.date_time.astimezone(zone).date() if zone is not None else sale.date_time.date()
+            for sale in data.sales
+        }
+        return compare_methods(
+            history, horizon=horizon, method=method, zero_filled_days=len(history) - len(sale_days)
         )
