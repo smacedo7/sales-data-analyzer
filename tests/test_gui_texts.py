@@ -101,3 +101,62 @@ class DemoTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FailureWordingTests(unittest.TestCase):
+    """Refusals are chosen by error type and data, never by English message text."""
+
+    def test_period_refusals_by_kind(self) -> None:
+        from sales_data_analyzer.application import InvalidPeriodError
+        from sales_data_analyzer.gui.messages import describe_failure
+
+        self.assertEqual(
+            describe_failure(InvalidPeriodError("any text", "reversed")),
+            "A data final é anterior à data inicial.",
+        )
+        self.assertEqual(
+            describe_failure(InvalidPeriodError("any text", "out_of_range")),
+            "A data final precisa ser no máximo 30/12/9999.",
+        )
+        self.assertEqual(
+            describe_failure(InvalidPeriodError("any text", "incomplete")),
+            "Informe a data inicial e a data final do período.",
+        )
+
+    def test_forecast_refusals_by_reason(self) -> None:
+        from sales_data_analyzer.forecasting import ForecastRefusal
+        from sales_data_analyzer.gui.messages import describe_failure
+
+        for reason in ("missing_days", "constant_revenue", "calendar_range", "not_finite",
+                       "test_days", "short_history"):  # fmt: skip
+            with self.subTest(reason=reason):
+                text = describe_failure(ForecastRefusal("English text", reason))
+                self.assertNotIn("English", text)
+                self.assertEqual(text, t(f"forecast.refusal.{reason}"))
+
+    def test_other_value_errors_never_show_their_english_message(self) -> None:
+        from sales_data_analyzer.gui.messages import describe_failure
+
+        for error in (ValueError("name cannot be empty"), TypeError(" name must be a string")):
+            text = describe_failure(error)
+            self.assertNotIn("name", text)
+            self.assertTrue(text.startswith("Algum valor informado não foi aceito"))
+
+    def test_constant_revenue_forecast_is_explained_in_portuguese(self) -> None:
+        from datetime import datetime, timedelta
+
+        from sales_data_analyzer.application import ItemInput
+        from sales_data_analyzer.gui.reports import explain_forecast_refusal
+
+        session = SalesSession()
+        workspace = session.create_company("Flat", "Retail")
+        workspace.register_product("P", "Pen", "Office")
+        for day in range(9):
+            workspace.record_sale(f"S{day}", datetime(2026, 1, 5) + timedelta(days=day),
+                                  [ItemInput("P", 1, Decimal(5), Decimal(1))])  # fmt: skip
+        with self.assertRaises(ValueError) as caught:
+            session.run_forecast()
+        self.assertEqual(
+            explain_forecast_refusal(caught.exception),
+            "O faturamento de treino é constante, então não há tendência para aprender.",
+        )

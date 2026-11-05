@@ -167,7 +167,13 @@ class SafetyTests(WindowTestCase):
         win = self.window()
         hook = _report_uncaught(win)
         hook(ValueError, ValueError("bad"), None)
-        self.assertEqual(self.prompter.warnings, ["Um valor não é válido: bad"])
+        self.assertEqual(
+            self.prompter.warnings,
+            [
+                "Algum valor informado não foi aceito. Confira os campos e tente de novo; "
+                "nada foi alterado."
+            ],
+        )
 
 
 if __name__ == "__main__":

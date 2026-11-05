@@ -17,8 +17,7 @@ from sales_data_analyzer.application import (
     SalesSession,
     Selection,
 )
-from sales_data_analyzer.cli.formatting import is_missing_days_error
-from sales_data_analyzer.forecasting import ComparisonResult, ForecastResult
+from sales_data_analyzer.forecasting import ComparisonResult, ForecastRefusal, ForecastResult
 
 from .texts import (
     decimal_number,
@@ -330,16 +329,9 @@ def explain_forecast_refusal(error: Exception) -> str:
         )
     if isinstance(error, NoSalesInSelectionError):
         return t("error.no_sales")
-    if is_missing_days_error(error):
-        return t("forecast.missing_days")
-    message = str(error)
-    if "constant" in message or "must vary" in message:
-        return t("forecast.constant")
-    if "calendar range" in message:
-        return t("forecast.too_far")
-    if "finite" in message:
-        return t("forecast.too_large")
-    return t("error.invalid_value", detail=message)
+    if isinstance(error, ForecastRefusal):
+        return t(f"forecast.refusal.{error.reason}")
+    return t("error.invalid_value")
 
 
 def _estimates_table(title: str, rows: tuple[tuple[str, ...], ...]) -> Table:

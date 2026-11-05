@@ -27,6 +27,7 @@ from sales_data_analyzer.application import (
     UnknownProductError,
 )
 from sales_data_analyzer.charts.images import ChartWriteError
+from sales_data_analyzer.forecasting import ForecastRefusal
 from sales_data_analyzer.importing import ImportValidationError
 
 from .pdf_report import ReportWriteError
@@ -81,12 +82,15 @@ def describe_failure(error: BaseException) -> str:
     if isinstance(error, SaleNotFoundError):
         return t("error.sale_not_found", id=error.sale_id)
     if isinstance(error, InvalidPeriodError):
-        reversed_ = "before the start" in str(error)
-        return t("error.period_reversed" if reversed_ else "error.period_range")
+        return t(f"error.period_{error.kind}")
+    if isinstance(error, ForecastRefusal):
+        from .reports import explain_forecast_refusal
+
+        return explain_forecast_refusal(error)
     if isinstance(error, InsufficientHistoryError):
         from .reports import explain_forecast_refusal
 
         return explain_forecast_refusal(error)
     if isinstance(error, (ApplicationError, ValueError, TypeError)):
-        return t("error.invalid_value", detail=str(error))
+        return t("error.invalid_value")  # never the English message of the error
     return t("error.unexpected", kind=type(error).__name__)
