@@ -38,3 +38,7 @@ class ChartData:
     forecast: tuple[tuple[date, float], ...] = ()
     forecast_title: str | None = None
     forecast_refusal: ValueError | None = None
+    weekday: tuple[tuple[int, Decimal | None], ...] = ()
+    """(weekday, average revenue over days with sales), Monday = 0; None without sales."""
+    forecast_key: str | None = None
+    """Method key behind `forecast` (lets interfaces translate the method name)."""

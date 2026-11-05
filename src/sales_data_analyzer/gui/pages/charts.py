@@ -1,113 +1,301 @@
-"""Charts tab: the level 3 Matplotlib charts drawn in the window and saved as PNG.
+"""Charts page: one explorable Matplotlib chart at a time, plus the PNG export.
 
-Charts are computed only on request (the comparison behind the estimate line is
-the slowest service), from the same figures that the PNG writer saves.
+The figures come from the level 3 chart builders (translated labels only). The
+page adds what a static image cannot do: a chart-type selector, the period of
+the header, zoom and pan with Matplotlib's navigation toolbar, the exact value
+under the mouse and a canvas that follows the window size. Values shown on
+hover are the exact Decimals of ChartData, formatted for display.
 """
 
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+from dataclasses import dataclass, replace
+from decimal import Decimal
+
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
+
+from sales_data_analyzer.application import ChartData
 
 from .. import reports
 from ..main_window import MainWindow, Page
-from ..texts import t
+from ..messages import describe_failure
+from ..texts import day, integer, method_title, money, t, template, weekday
+from ..widgets import button, clear_layout, label, page_header
 
-PROMPT = ""
-CHART_PIXELS_PER_INCH = 90
-"""On-screen height per inch of figure, so charts scroll instead of shrinking."""
+PANEL_LIGHT = "#f3eee6"
+"""Toolbar background; light, so the toolbar icons are drawn dark."""
+
+KINDS = ("daily", "monthly", "products", "weekday")
+"""Chart types offered by the selector, in order."""
+
+TOOLBAR_KEYS = {
+    "Home": "charts.tool.home",
+    "Back": "charts.tool.back",
+    "Forward": "charts.tool.forward",
+    "Pan": "charts.tool.pan",
+    "Zoom": "charts.tool.zoom",
+}
+"""Matplotlib toolbar actions kept, with their translated tooltips."""
+
+
+@dataclass(frozen=True)
+class HoverPoint:
+    """A drawn value the mouse can point at: position in data units and its text."""
+
+    x: float
+    y: float
+    text: str
+
+
+def chart_labels():  # -> ChartLabels
+    """Return the chart texts and axis number format of the active language."""
+    from sales_data_analyzer.charts.images import ChartLabels
+
+    return ChartLabels(
+        daily=t("charts.kind.daily"),
+        monthly=t("charts.kind.monthly"),
+        products=template("charts.top_title"),
+        weekday=t("charts.kind.weekday"),
+        revenue=t("charts.axis_revenue"),
+        estimate=template("charts.legend_estimate"),
+        axis_number=lambda value: integer(round(value)),
+    )
+
+
+def hover_points(kind: str, data: ChartData) -> list[HoverPoint]:
+    """Return the points and bars of a chart with their exact values as text.
+
+    Line points use Matplotlib date numbers on x; vertical bars use their index;
+    horizontal top-product bars use their row counted from the bottom.
+    """
+    from matplotlib.dates import date2num
+
+    if kind == "daily":
+        points = [
+            HoverPoint(date2num(when), float(value),
+                       t("charts.hover_day", day=day(when), value=money(value)))
+            for when, value in data.daily
+        ]  # fmt: skip
+        points += [
+            HoverPoint(date2num(when), value,
+                       t("charts.hover_estimate", day=day(when),
+                         value=money(Decimal(repr(round(value, 2))))))
+            for when, value in data.forecast
+        ]  # fmt: skip
+        return points
+    if kind == "monthly":
+        return [
+            HoverPoint(index, float(value), t("charts.hover_bar", label=name, value=money(value)))
+            for index, (name, value) in enumerate(data.monthly)
+        ]
+    if kind == "weekday":
+        return [
+            HoverPoint(index, float(value or 0),
+                       t("charts.hover_bar", label=weekday(index), value=money(value)))
+            for index, value in data.weekday
+        ]  # fmt: skip
+    rows = list(reversed(data.top_products))  # drawn with the largest at the top
+    return [
+        HoverPoint(float(row.revenue), index,
+                   t("charts.hover_bar", label=row.label, value=money(row.revenue)))
+        for index, row in enumerate(rows)
+    ]  # fmt: skip
+
+
+class InteractiveChart(QWidget):
+    """A Matplotlib canvas with a translated zoom/pan toolbar and value tooltips."""
+
+    def __init__(self, figure, points: list[HoverPoint], kind: str) -> None:
+        """Embed figure; points are what the mouse can point at."""
+        super().__init__()
+        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+
+        figure.set_layout_engine("constrained")
+        palette = self.palette()  # light palette: Matplotlib then draws dark toolbar icons
+        palette.setColor(QPalette.ColorRole.Window, QColor(PANEL_LIGHT))
+        palette.setColor(QPalette.ColorRole.Button, QColor(PANEL_LIGHT))
+        self.setPalette(palette)
+        self.canvas = FigureCanvasQTAgg(figure)
+        self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.canvas.setMinimumHeight(300)
+
+        class Toolbar(NavigationToolbar2QT):
+            toolitems = [
+                (name, t(TOOLBAR_KEYS[name]), image, method)
+                for name, _, image, method in NavigationToolbar2QT.toolitems
+                if name in TOOLBAR_KEYS
+            ]
+
+        self.toolbar = Toolbar(self.canvas, self, coordinates=False)
+        self.toolbar.setObjectName("chartToolbar")
+        self.figure = figure
+        self.axes = figure.axes[0]
+        self.points = points
+        self.kind = kind
+        self.annotation = self.axes.annotate(
+            "", xy=(0, 0), xytext=(12, 12), textcoords="offset points",
+            bbox={"boxstyle": "round,pad=0.4", "fc": "#fffaf2", "ec": "#d5cdc0"},
+            fontsize=9, zorder=10, annotation_clip=False,
+        )  # fmt: skip
+        self.annotation.set_visible(False)
+        self.canvas.mpl_connect("motion_notify_event", self.on_move)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.toolbar)
+        layout.addWidget(self.canvas, 1)
+
+    def nearest(self, x_pixels: float, y_pixels: float, radius: float = 24) -> HoverPoint | None:
+        """Return the drawn point closest to a mouse position (pixels), within radius."""
+        best, best_distance = None, radius
+        for point in self.points:
+            px, py = self.axes.transData.transform((point.x, point.y))
+            if self.kind == "products":  # horizontal bars: the row decides
+                distance = abs(py - y_pixels) if x_pixels <= px + radius else radius + 1
+            elif self.kind in ("monthly", "weekday"):  # vertical bars: the column decides
+                distance = abs(px - x_pixels) if y_pixels <= py + radius else radius + 1
+            else:
+                distance = ((px - x_pixels) ** 2 + (py - y_pixels) ** 2) ** 0.5
+            if distance < best_distance:
+                best, best_distance = point, distance
+        return best
+
+    def on_move(self, event) -> None:
+        """Show the value of the nearest point, or hide the tooltip."""
+        point = self.nearest(event.x, event.y) if event.inaxes is self.axes else None
+        visible = point is not None
+        changed = self.annotation.get_visible() != visible
+        if point is not None:
+            changed = changed or self.annotation.get_text() != point.text
+            self.annotation.xy = (point.x, point.y)
+            self.annotation.set_text(point.text)
+            right_half = event.x > self.canvas.width() * self.canvas.device_pixel_ratio * 0.6
+            self.annotation.set_horizontalalignment("right" if right_half else "left")
+            self.annotation.xyann = (-12 if right_half else 12, 12)  # keep it inside the plot
+        self.annotation.set_visible(visible)
+        if changed:
+            self.canvas.draw_idle()
 
 
 class ChartsPage(Page):
-    """Daily (with estimate), monthly and top-product charts of the active selection."""
+    """One chart of the active selection, chosen by type, explorable in place."""
 
     key = "charts"
 
     def __init__(self, window: MainWindow) -> None:
-        """Build the buttons, the note and the scrolling chart area."""
+        """Build the selector, the save button, the note and the chart area."""
         super().__init__(window)
-        self.refresh_button = QPushButton(t("charts.title"))
-        self.refresh_button.clicked.connect(self.draw)
-        self.save_button = QPushButton(t("charts.save"))
-        self.save_button.clicked.connect(self.save)
-        self.note_label = QLabel(PROMPT)
-        self.note_label.setWordWrap(True)
-        self.canvases: list[QWidget] = []
-        self._charts = QWidget()
-        self._charts_layout = QVBoxLayout(self._charts)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(self._charts)
-        buttons = QHBoxLayout()
-        buttons.addWidget(self.refresh_button)
-        buttons.addWidget(self.save_button)
-        buttons.addStretch()
+        self.kind_box = QComboBox()
+        for kind in KINDS:
+            self.kind_box.addItem(t(f"charts.kind.{kind}"), kind)
+        self.kind_box.currentIndexChanged.connect(lambda _: self.draw())
+        self.save_button = button(t("charts.save"), self.save)
+        self.note_label = label("", "note")
+        self.chart: InteractiveChart | None = None
+        self.data: ChartData | None = None
+        self._stale = True
+        options = QHBoxLayout()
+        options.addWidget(label(t("charts.kind"), wrap=False))
+        options.addWidget(self.kind_box)
+        options.addStretch()
+        options.addWidget(self.save_button)
+        self.area = QVBoxLayout()
         layout = QVBoxLayout(self)
-        layout.addLayout(buttons)
+        layout.setContentsMargins(28, 24, 28, 16)
+        layout.setSpacing(10)
+        layout.addLayout(page_header(t("charts.title"), t("charts.subtitle")))
+        layout.addLayout(options)
         layout.addWidget(self.note_label)
-        layout.addWidget(scroll, 1)
+        layout.addLayout(self.area, 1)
+
+    def choose(self, kind: str) -> None:
+        """Select a chart type (draws it at once)."""
+        self.kind_box.setCurrentIndex(self.kind_box.findData(kind))
 
     def refresh(self) -> None:
-        """Remove charts of an older selection or company."""
-        self._clear()
-        self.note_label.setText(PROMPT)
+        """Forget the chart values; draw again only when the page is on screen."""
+        self._stale = True
+        self.data = None
+        self.chart = None
+        clear_layout(self.area)
+        if self.isVisible():
+            self.draw()
 
-    def _clear(self) -> None:
-        """Delete the embedded canvases."""
-        for canvas in self.canvases:
-            self._charts_layout.removeWidget(canvas)
-            canvas.deleteLater()
-        self.canvases = []
-
-    @staticmethod
-    def _note(data) -> str:  # data: ChartData
-        """Return the line explaining a missing estimate, or a neutral one."""
-        if data.forecast_refusal is not None:
-            reason = reports.explain_forecast_refusal(data.forecast_refusal)
-            return t("charts.forecast_off", reason=reason)
-        return t("charts.forecast_on", title=data.forecast_title)
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """Draw a pending chart when the page appears (the comparison is the slow part)."""
+        super().showEvent(event)
+        if self._stale:
+            self.draw()
 
     def draw(self) -> None:
-        """Draw the charts of the current selection inside the window."""
-        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
-
+        """Draw the chosen chart of the current selection, or show the empty state."""
         from sales_data_analyzer.charts.images import ChartInputs, build_figure, has_data
 
-        def build():  # -> (ChartData, figures)
-            data = self.session.chart_data()
-            inputs = ChartInputs.from_data(data)
-            kinds = [kind for kind in ("daily", "monthly", "products") if has_data(kind, inputs)]
-            return data, [build_figure(kind, inputs) for kind in kinds]
-
-        built = self.window_.attempt(build)
-        if built is None:
+        self._stale = False
+        clear_layout(self.area)
+        self.chart = None
+        self.note_label.setText("")
+        if self.session.current is None:
             return
-        data, figures = built
-        self._clear()
-        for figure in figures:
-            figure.set_layout_engine("constrained")  # keep titles inside the widget
-            canvas = FigureCanvasQTAgg(figure)
-            canvas.setFixedHeight(int(figure.get_figheight() * CHART_PIXELS_PER_INCH))
-            self._charts_layout.addWidget(canvas)
-            self.canvases.append(canvas)
-        self._charts_layout.activate()  # grow the scrolled area before the next paint
-        self.note_label.setText(self._note(data))
+        empty = self.window_.empty_state()
+        self.save_button.setEnabled(empty is None)
+        if empty is not None:
+            self.area.addWidget(empty)
+            return
+        if self.data is None:
+            try:  # also runs from refresh, so failures are shown inline, never re-refreshed
+                self.data = self.session.chart_data()
+            except Exception as error:
+                self.area.addWidget(label(describe_failure(error), "banner"))
+                return
+        kind = self.kind_box.currentData()
+        inputs = replace(
+            ChartInputs.from_data(self.data, weekday_names=[weekday(i)[:3] for i in range(7)]),
+            title=self._subtitle(),
+            forecast_title=self._method(),
+        )
+        if not has_data(kind, inputs):
+            self.area.addWidget(label(t("charts.no_data"), "banner"))
+            return
+        figure = build_figure(kind, inputs, chart_labels())
+        if kind == "daily":
+            from matplotlib.dates import DateFormatter
+
+            figure.axes[0].xaxis.set_major_formatter(DateFormatter(t("charts.date_axis")))
+        self.chart = InteractiveChart(figure, hover_points(kind, self.data), kind)
+        self.area.addWidget(self.chart, 1)
+        self.note_label.setText(self._note() if kind == "daily" else t("charts.period_note"))
+
+    def _note(self) -> str:
+        """Explain the estimate line, or why it is missing."""
+        if self.data.forecast_refusal is not None:
+            reason = reports.explain_forecast_refusal(self.data.forecast_refusal)
+            return t("charts.forecast_off", reason=reason)
+        return t("charts.forecast_on", title=self._method())
+
+    def _method(self) -> str | None:
+        """Return the translated name of the method behind the estimate line."""
+        if self.data.forecast_key is None:
+            return self.data.forecast_title
+        return method_title(self.data.forecast_key, self.data.forecast_title or "")
+
+    def _subtitle(self) -> str:
+        """Return 'company — period' in the active language."""
+        company = self.session.require_current().company.name
+        return f"{company} — {reports.period_text(self.session.selection)}"
 
     def save(self) -> None:
-        """Save the charts as PNG files in a chosen folder, asking before replacing."""
+        """Save the three level 3 charts as PNG files, asking before replacing any."""
         from sales_data_analyzer.charts.images import ChartInputs, save_charts
 
         folder = self.window_.prompter.choose_folder()
         if folder is None:
             return
 
+        def replace(path) -> bool:
+            return self.window_.prompter.confirm(t("charts.replace", name=path.name))
+
         def write():  # -> (ChartData, paths)
             data = self.session.chart_data()
-            written = save_charts(
-                ChartInputs.from_data(data),
-                folder,
-                replace=lambda path: self.window_.prompter.confirm(
-                    t("charts.replace", name=path.name)
-                ),
-            )
-            return data, written
+            return data, save_charts(ChartInputs.from_data(data), folder, replace=replace)
 
         saved = self.window_.attempt(write)
         if saved is None:
@@ -119,5 +307,6 @@ class ChartsPage(Page):
             else [t("charts.nothing_saved")]
         )
         if data.forecast_refusal is not None:
-            lines.insert(0, self._note(data))
+            reason = reports.explain_forecast_refusal(data.forecast_refusal)
+            lines.insert(0, t("charts.forecast_off", reason=reason))
         self.window_.prompter.inform("\n".join(lines))

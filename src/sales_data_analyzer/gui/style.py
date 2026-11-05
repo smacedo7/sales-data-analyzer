@@ -87,6 +87,7 @@ QComboBox, QDateEdit, QSpinBox, QLineEdit {{
     background: {PANEL}; border: 1px solid #d5cdc0; border-radius: 6px; padding: 4px 8px;
 }}
 QToolBar {{ background: transparent; border: none; }}
+QToolBar#chartToolbar {{ background: #f3eee6; border-radius: 8px; padding: 2px; }}
 QStatusBar {{ background: {PANEL}; color: {MUTED}; border-top: 1px solid {LINE}; }}
 """
 """Style sheet applied to the main window (and inherited by its dialogs)."""

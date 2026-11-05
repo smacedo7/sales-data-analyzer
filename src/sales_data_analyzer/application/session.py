@@ -394,6 +394,7 @@ class SalesSession:
         self._require_selected_sales()
         forecast: tuple[tuple[date, float], ...] = ()
         forecast_title = None
+        forecast_key = None
         refusal = None
         try:
             comparison = self.compare_forecasts()
@@ -402,6 +403,7 @@ class SalesSession:
         else:
             forecast = tuple((p.day, p.revenue) for p in comparison.future)
             forecast_title = comparison.chosen_title
+            forecast_key = comparison.chosen_key
         return ChartData(
             title=f"{workspace.company.name} - {self._selection.describe()}",
             daily=tuple((r.start, r.revenue) for r in self.sales_over_time("day").rows),
@@ -409,5 +411,7 @@ class SalesSession:
             top_products=self.top_products(),
             forecast=forecast,
             forecast_title=forecast_title,
+            forecast_key=forecast_key,
             forecast_refusal=refusal,
+            weekday=tuple((p.weekday, p.average_revenue) for p in self.weekday_profile()),
         )

@@ -240,7 +240,7 @@ PT_BR: dict[str, str] = {
     "method.weekday_trend": "Tendência linear + dia da semana",
     # -- charts -----------------------------------------------------------------
     "charts.title": "Gráficos",
-    "charts.subtitle": "Passe o mouse para ver valores; use a barra para dar zoom e arrastar.",
+    "charts.subtitle": "Escolha o gráfico, passe o mouse para ver os valores e use a lupa e a mão para dar zoom e deslocar.",
     "charts.kind": "Gráfico",
     "charts.kind.daily": "Faturamento diário e previsão",
     "charts.kind.monthly": "Faturamento mensal",
@@ -257,6 +257,15 @@ PT_BR: dict[str, str] = {
     "charts.hover_bar": "{label}\n{value}",
     "charts.axis_revenue": "Faturamento",
     "charts.top_title": "Os {count} produtos com maior faturamento",
+    "charts.tool.home": "Voltar à visão inicial",
+    "charts.tool.back": "Visão anterior",
+    "charts.tool.forward": "Próxima visão",
+    "charts.tool.pan": "Arrastar: clique e arraste para deslocar; botão direito dá zoom",
+    "charts.tool.zoom": "Zoom: desenhe um retângulo sobre a área",
+    "charts.legend_estimate": "Estimativa ({title})",
+    "charts.date_axis": "%d/%m",
+    "charts.no_data": "Este gráfico não tem dados no período selecionado.",
+    "charts.period_note": "O gráfico usa o período escolhido no topo da janela.",
     # -- report -----------------------------------------------------------------
     "report.title": "Relatório PDF",
     "report.subtitle": "Um resumo para imprimir ou enviar: empresa, período, indicadores, produtos de destaque e gráficos.",
@@ -557,7 +566,7 @@ EN: dict[str, str] = {
     "method.linear_trend": "Linear trend",
     "method.weekday_trend": "Linear trend + weekday",
     "charts.title": "Charts",
-    "charts.subtitle": "Hover to see values; use the toolbar to zoom and pan.",
+    "charts.subtitle": "Choose the chart, hover to see the values and use the magnifier and the hand to zoom and pan.",
     "charts.kind": "Chart",
     "charts.kind.daily": "Daily revenue and forecast",
     "charts.kind.monthly": "Monthly revenue",
@@ -574,6 +583,15 @@ EN: dict[str, str] = {
     "charts.hover_bar": "{label}\n{value}",
     "charts.axis_revenue": "Revenue",
     "charts.top_title": "The {count} products with the highest revenue",
+    "charts.tool.home": "Back to the initial view",
+    "charts.tool.back": "Previous view",
+    "charts.tool.forward": "Next view",
+    "charts.tool.pan": "Pan: click and drag to move; right button zooms",
+    "charts.tool.zoom": "Zoom: draw a rectangle over the area",
+    "charts.legend_estimate": "Estimate ({title})",
+    "charts.date_axis": "%m-%d",
+    "charts.no_data": "This chart has no data in the selected period.",
+    "charts.period_note": "The chart uses the period chosen at the top of the window.",
     "report.title": "PDF report",
     "report.subtitle": "A summary to print or send: company, period, indicators, top products and charts.",
     "report.export": "Export PDF…",
@@ -685,6 +703,11 @@ def t(key: str, /, count: int | None = None, **values: object) -> str:
         key = f"{key}_one" if count == 1 else f"{key}_other"
         values["count"] = count
     return catalog[key].format(**values)
+
+
+def template(key: str) -> str:
+    """Return the unfilled text of key, for code that fills its placeholders later."""
+    return CATALOGS[_language][key]
 
 
 # -- display formats (presentation only) --------------------------------------------

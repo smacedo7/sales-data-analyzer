@@ -18,6 +18,13 @@ def application() -> QApplication:
     return QApplication.instance() or QApplication(["tests"])
 
 
+def flush_deleted() -> None:
+    """Run pending deleteLater calls so no widget outlives its test."""
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
 class UnexpectedQuestion(BaseException):
     """Raised for an unanswered question; a BaseException so the window's error
     funnel (which catches Exception) can never hide it from the test."""
@@ -103,6 +110,7 @@ class WindowTestCase(unittest.TestCase):
 
         self.prompter = ScriptedPrompter()
         window = MainWindow(session or SalesSession(), self.prompter, pages=pages)
+        self.addCleanup(flush_deleted)  # runs last: delete the window now, not at exit
         self.addCleanup(window.deleteLater)
         self.addCleanup(window.close)
         return window
