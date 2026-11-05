@@ -18,7 +18,7 @@ from sales_data_analyzer.gui.forms import (
     SaleDialog,
     SaleValues,
 )
-from sales_data_analyzer.gui.tables import cells
+from sales_data_analyzer.gui.widgets import cells
 
 from support.databases import row_counts
 
@@ -34,7 +34,7 @@ class CatalogAndSalesTestCase(StoredWindowTestCase):
         self.win = self.open_window()
         self.prompter.queue("company", CompanyValues("Acme", "Retail"))
         self.win.new_company()
-        self.catalog, self.sales = self.win.pages[0], self.win.pages[1]
+        self.catalog, self.sales = self.win.page("catalog"), self.win.page("sales")
 
     def register(self, *products: tuple[str, str, str]) -> None:
         for values in products:
@@ -54,7 +54,7 @@ class CatalogTests(CatalogAndSalesTestCase):
     def test_duplicate_id_is_refused_and_the_catalog_is_unchanged(self) -> None:
         self.register(("P1", "Pen", "Office"), (" P1 ", "Other", "X"))
         self.assertEqual(
-            self.prompter.warnings, ["Not done: this product ID already exists in the catalog."]
+            self.prompter.warnings, ["Já existe um produto com o código P1 no catálogo."]
         )
         self.assertEqual(cells(self.catalog.table), [["P1", "Pen", "Office"]])
         self.assertEqual(row_counts(self.path)["product"], 1)
@@ -72,9 +72,7 @@ class CatalogTests(CatalogAndSalesTestCase):
     def test_actions_without_a_selected_row_are_explained(self) -> None:
         self.catalog.edit_product()
         self.catalog.delete_product()
-        self.assertEqual(
-            self.prompter.warnings, ["Not done: select a product in the table first."] * 2
-        )
+        self.assertEqual(self.prompter.warnings, ["Selecione um produto na tabela primeiro."] * 2)
 
     def test_unsold_product_is_deleted_only_after_confirmation(self) -> None:
         self.register(("P1", "Pen", "Office"))
@@ -84,7 +82,7 @@ class CatalogTests(CatalogAndSalesTestCase):
         self.assertEqual(row_counts(self.path)["product"], 1)
         self.catalog.select("P1")
         self.catalog.delete_product()
-        self.assertEqual(self.prompter.questions[-1], "Delete product P1 Pen?")
+        self.assertEqual(self.prompter.questions[-1], "Excluir o produto P1 — Pen?")
         self.assertEqual(cells(self.catalog.table), [])
         self.assertEqual(row_counts(self.path)["product"], 0)
 
@@ -97,7 +95,7 @@ class CatalogTests(CatalogAndSalesTestCase):
         self.catalog.delete_product()
         self.assertEqual(
             self.prompter.warnings,
-            ["Not done: this product appears in 1 sale and cannot be deleted."],
+            ["O produto aparece em 1 venda e por isso não pode ser excluído."],
         )
         self.assertEqual(row_counts(self.path)["product"], 1)
 
@@ -118,8 +116,8 @@ class ManualSaleTests(CatalogAndSalesTestCase):
             ItemInput("P2", 1, Decimal("10"), Decimal("4")),
         )
         self.assertEqual(self.prompter.warnings, [])
-        self.assertEqual(cells(self.sales.table), [["S1", "2026-03-02T09:30:00", "2", "13.02"]])
-        self.assertEqual(self.sales.count_label.text(), "1 sale")
+        self.assertEqual(cells(self.sales.table), [["S1", "02/03/2026 09:30:00", "2", "13,02"]])
+        self.assertEqual(self.sales.count_label.text(), "1 venda")
         stored = self.reopen().workspaces[0].sales.sales[0]
         self.assertEqual(stored.items[0].unit_price, Decimal("1.005"))
         self.assertEqual(stored.calculate_total(), Decimal("13.015"))
@@ -143,10 +141,10 @@ class ManualSaleTests(CatalogAndSalesTestCase):
         self.assertEqual(
             self.prompter.warnings,
             [
-                "Not done: 1 sale ID(s) already exist in this company.",
-                "Not done: a sale needs at least one item.",
-                "Not done: the product ID is not in the catalog.",
-                "Not done: sales with and without time zone offsets cannot be mixed in one company.",
+                "Já existe uma venda com o código S1 nesta empresa.",
+                "Uma venda precisa de pelo menos um item.",
+                "O produto NOPE não está no catálogo.",
+                "Uma empresa não pode misturar vendas com e sem fuso horário.",
             ],
         )
         self.assertEqual(row_counts(self.path)["sale"], 1)
@@ -160,7 +158,7 @@ class ManualSaleTests(CatalogAndSalesTestCase):
         self.sales.record_sale()
         self.assertEqual(
             self.prompter.warnings,
-            ["Not done: the catalog is empty; register or import products first."],
+            ["O catálogo está vazio. Cadastre ou importe produtos antes de registrar uma venda."],
         )
         self.assertNotIn("sale form", self.prompter.questions)
 
@@ -175,8 +173,8 @@ class ManualSaleTests(CatalogAndSalesTestCase):
         self.sales.select("S1")
         self.prompter.queue("confirm", True)
         self.sales.delete_sale()
-        self.assertEqual(self.prompter.warnings, ["Not done: select a sale in the table first."])
-        self.assertEqual(self.prompter.questions[-1], "Delete sale S1 (1 item, total 3.00)?")
+        self.assertEqual(self.prompter.warnings, ["Selecione uma venda na tabela primeiro."])
+        self.assertEqual(self.prompter.questions[-1], "Excluir a venda S1 (1 item, total 3,00)?")
         self.assertEqual(cells(self.sales.table), [])
         counts = row_counts(self.path)
         self.assertEqual((counts["sale"], counts["sale_item"]), (0, 0))
@@ -198,7 +196,7 @@ class ImportTests(CatalogAndSalesTestCase):
         self.assertEqual(self.prompter.warnings, [])
         self.assertEqual(
             self.prompter.notices,
-            ["Imported 2 sales, 3 items. Products: 2 new, 0 reused."],
+            ["Importação concluída: 2 vendas e 3 itens. Produtos: 2 novos e 0 reaproveitados."],
         )
         self.assertEqual([row[0] for row in cells(self.catalog.table)], ["007", "008"])
         self.assertEqual(len(cells(self.sales.table)), 2)
@@ -216,14 +214,20 @@ class ImportTests(CatalogAndSalesTestCase):
             self.sales.import_csv()
         warnings = self.prompter.warnings
         self.assertEqual(len(warnings), 4)
-        self.assertTrue(warnings[0].startswith("Import refused at line 2, field quantity:"))
+        self.assertTrue(
+            warnings[0].startswith(
+                "Importação recusada: a linha 2 tem um problema na coluna “quantity”"
+            )
+        )
         self.assertEqual(
             warnings[1],
-            "Import refused: 2 sale ID(s) already exist in this company: 001, 002. "
-            "Nothing was imported.",
+            "Importação recusada: 2 códigos de venda do arquivo já existem nesta empresa "
+            "(001, 002). Nada foi importado.",
         )
-        self.assertIn("time zone offsets cannot be mixed", warnings[2])
-        self.assertTrue(warnings[3].startswith("Import refused"))
+        self.assertEqual(
+            warnings[2], "Uma empresa não pode misturar vendas com e sem fuso horário."
+        )
+        self.assertTrue(warnings[3].startswith("Importação recusada"))
         self.assertNotIn(str(FIXTURES), " ".join(warnings))
         self.assertEqual(row_counts(self.path), before)
 
@@ -234,8 +238,8 @@ class ImportTests(CatalogAndSalesTestCase):
         self.assertEqual(
             self.prompter.warnings,
             [
-                "Import refused: 1 product ID(s) have a different name or category in the "
-                "catalog: 007. Nothing was imported."
+                "Importação recusada: o produto 007 do arquivo tem nome ou categoria diferentes "
+                "no catálogo. Nada foi importado."
             ],
         )
         self.assertEqual(row_counts(self.path)["sale"], 0)
@@ -287,11 +291,11 @@ class FormTests(unittest.TestCase):
 
     def test_sale_form_names_the_invalid_field_and_stays_open(self) -> None:
         cases = {
-            ("", "2026-03-02T09:30:00", "1", "1", "1"): "Sale ID:",
-            ("S", "2026-02-30T09:30:00", "1", "1", "1"): "Date and time:",
-            ("S", "2026-03-02T09:30:00", "0", "1", "1"): "Item 1 quantity:",
-            ("S", "2026-03-02T09:30:00", "1", "-1", "1"): "Item 1 unit price:",
-            ("S", "2026-03-02T09:30:00", "1", "1", "1,5"): "Item 1 unit cost:",
+            ("", "2026-03-02T09:30:00", "1", "1", "1"): "Código da venda: preencha",
+            ("S", "2026-02-30T09:30:00", "1", "1", "1"): "Data e hora: use o formato",
+            ("S", "2026-03-02T09:30:00", "0", "1", "1"): "Item 1, quantidade: use um número",
+            ("S", "2026-03-02T09:30:00", "1", "-1", "1"): "Item 1, preço unitário: use um valor",
+            ("S", "2026-03-02T09:30:00", "1", "1", "1,5"): "Item 1, custo unitário: use um valor",
         }
         for (sale_id, moment, quantity, price, cost), field in cases.items():
             with self.subTest(field=field):

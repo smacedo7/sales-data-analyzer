@@ -1,4 +1,4 @@
-"""Desktop window, user story 1: open the database and choose or register a company."""
+"""Desktop window: open the database, home page, navigation locks and companies."""
 
 from pathlib import Path
 import unittest
@@ -6,8 +6,6 @@ from unittest import mock
 
 from support.qt import StoredWindowTestCase, application
 
-from PySide6.QtCore import Qt
-from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QDialog
 
 from sales_data_analyzer.application import (
@@ -22,51 +20,59 @@ from sales_data_analyzer.persistence import SQLiteSalesRepository
 from support.databases import row_counts, temporary_database
 
 
-class OpenAndListTests(StoredWindowTestCase):
-    def test_stored_companies_are_listed_and_none_is_selected(self) -> None:
+class OpenAndHomeTests(StoredWindowTestCase):
+    def store(self, *companies: tuple[str, str]) -> None:
         repository = SQLiteSalesRepository.open(self.path)
         session = SalesSession(repository)
-        session.create_company("Acme", "Retail")
-        session.create_company("Bolt", "Tools")
+        for name, sector in companies:
+            session.create_company(name, sector)
         repository.close()
 
+    def test_home_lists_stored_companies_and_locks_company_pages(self) -> None:
+        self.store(("Acme", "Retail"), ("Bolt", "Tools"))
         window = self.open_window()
-        box = window.company_box
-        self.assertEqual(
-            [box.itemText(i) for i in range(box.count())],
-            ["No company selected", "Acme (Retail)", "Bolt (Tools)"],
-        )
-        self.assertEqual(box.currentIndex(), 0)
-        self.assertFalse(window.tabs.isEnabled())
-        self.assertFalse(window.edit_company_button.isEnabled())
-        self.assertEqual(window.selection_label.text(), "No company selected")
-        self.assertEqual(window.database_label.text(), f"Database: {self.path}")
+        home = window.page("home")
+        self.assertIs(window.current_page, home)
+        self.assertEqual(len(home.open_buttons), 2)
+        self.assertFalse(home.empty_label.isVisibleTo(home))
+        self.assertEqual(window.company_label.text(), "Nenhuma empresa selecionada")
+        self.assertFalse(window.period_row.isVisibleTo(window))
+        self.assertEqual(window.database_label.text(), f"Banco de dados: {self.path}")
+        window.go("sales")  # locked without a company
+        self.assertIs(window.current_page, home)
+        self.assertIn("Escolha ou cadastre uma empresa", window.statusBar().currentMessage())
 
-    def test_choosing_a_company_selects_it_and_enables_the_tabs(self) -> None:
-        repository = SQLiteSalesRepository.open(self.path)
-        SalesSession(repository).create_company("Acme", "Retail")
-        repository.close()
+    def test_opening_a_company_shows_its_overview_and_unlocks_the_navigation(self) -> None:
+        self.store(("Acme", "Retail"))
         window = self.open_window()
-        window.company_box.activated.emit(1)
+        window.page("home").open_buttons[0].click()
         self.assertEqual(window.session.current.company.name, "Acme")
-        self.assertTrue(window.tabs.isEnabled())
-        self.assertEqual(window.selection_label.text(), "Selection: Acme - all data (0 sales)")
-        window.company_box.activated.emit(0)  # the placeholder keeps the selection
-        self.assertEqual(window.company_box.currentIndex(), 1)
+        self.assertIs(window.current_page, window.page("overview"))
+        self.assertEqual(window.company_label.text(), "Acme · Retail")
+        self.assertEqual(window.selection_label.text(), "Todo o histórico · 0 vendas")
+        window.go("sales")
+        self.assertIs(window.current_page, window.page("sales"))
+
+    def test_empty_database_explains_there_are_no_companies(self) -> None:
+        window = self.open_window()
+        home = window.page("home")
+        self.assertTrue(home.empty_label.isVisibleTo(home))
+        self.assertEqual(home.empty_label.text(), "Você ainda não cadastrou nenhuma empresa.")
 
 
 class CreateAndEditTests(StoredWindowTestCase):
     def test_new_company_is_stored_selected_and_survives_reopen(self) -> None:
         window = self.open_window()
         self.prompter.queue("company", CompanyValues("Café Açaí", "Food"))
-        QTest.mouseClick(window.new_company_button, Qt.MouseButton.LeftButton)
-        self.assertEqual(window.company_box.currentText(), "Café Açaí (Food)")
+        window.page("home").new_button.click()
+        self.assertEqual(window.company_label.text(), "Café Açaí · Food")
+        self.assertIs(window.current_page, window.page("overview"))
         self.assertEqual(self.prompter.warnings, [])
         self.assertEqual(row_counts(self.path)["company"], 1)
         stored = self.reopen().workspaces[0].company
         self.assertEqual((stored.name, stored.sector), ("Café Açaí", "Food"))
 
-    def test_duplicate_name_is_refused_and_nothing_is_stored(self) -> None:
+    def test_duplicate_name_is_refused_in_portuguese_and_nothing_is_stored(self) -> None:
         window = self.open_window()
         self.prompter.queue(
             "company", CompanyValues("Acme", "Retail"), CompanyValues(" acme ", "X")
@@ -74,7 +80,8 @@ class CreateAndEditTests(StoredWindowTestCase):
         window.new_company()
         window.new_company()
         self.assertEqual(
-            self.prompter.warnings, ["Not done: a company with this name already exists."]
+            self.prompter.warnings,
+            ["Já existe uma empresa com esse nome (maiúsculas e espaços não contam)."],
         )
         self.assertEqual(row_counts(self.path)["company"], 1)
 
@@ -91,16 +98,16 @@ class CreateAndEditTests(StoredWindowTestCase):
             "company", CompanyValues("Acme", "Retail"), CompanyValues("Acme Ltd", "Tools")
         )
         window.new_company()
-        window.edit_company()
+        window.edit_company_button.click()
         self.assertIn("company form (Acme)", self.prompter.questions)
-        self.assertEqual(window.company_box.currentText(), "Acme Ltd (Tools)")
+        self.assertEqual(window.company_label.text(), "Acme Ltd · Tools")
         stored = self.reopen().workspaces[0].company
         self.assertEqual((stored.name, stored.sector), ("Acme Ltd", "Tools"))
 
     def test_edit_without_company_is_explained(self) -> None:
         window = self.open_window()
         window.edit_company()
-        self.assertEqual(self.prompter.warnings, ["Not done: create or select a company first."])
+        self.assertEqual(self.prompter.warnings, ["Escolha ou cadastre uma empresa primeiro."])
 
 
 class FailureTests(StoredWindowTestCase):
@@ -114,9 +121,9 @@ class FailureTests(StoredWindowTestCase):
             window.edit_company()
         self.assertEqual(
             self.prompter.warnings,
-            ["Not done: the database could not be updated. Nothing was changed."],
+            ["Não foi possível gravar no banco de dados. Nada foi alterado."],
         )
-        self.assertEqual(window.company_box.currentText(), "Acme (Retail)")
+        self.assertEqual(window.company_label.text(), "Acme · Retail")
         self.assertEqual(self.reopen().workspaces[0].company.name, "Acme")
 
     def test_change_by_another_copy_asks_to_restart(self) -> None:
@@ -127,7 +134,8 @@ class FailureTests(StoredWindowTestCase):
         ):
             window.new_company()
         self.assertEqual(len(self.prompter.warnings), 1)
-        self.assertIn("another copy of the program; restart it", self.prompter.warnings[0])
+        self.assertIn("outra cópia do programa", self.prompter.warnings[0])
+        self.assertIn("feche e abra o programa novamente", self.prompter.warnings[0])
         self.assertEqual(window.session.workspaces, ())
 
     def test_unexpected_error_is_reported_and_the_window_stays_usable(self) -> None:
@@ -136,11 +144,12 @@ class FailureTests(StoredWindowTestCase):
         with mock.patch.object(window.session, "create_company", side_effect=RuntimeError("boom")):
             window.new_company()
         self.assertEqual(
-            self.prompter.warnings, ["Unexpected error (RuntimeError). Your data is unchanged."]
+            self.prompter.warnings,
+            ["Ocorreu um erro inesperado (RuntimeError). Seus dados não foram alterados."],
         )
         self.assertNotIn("boom", self.prompter.warnings[0])
         window.new_company()
-        self.assertEqual(window.company_box.currentText(), "A (B)")
+        self.assertEqual(window.company_label.text(), "A · B")
 
 
 class CompanyFormTests(unittest.TestCase):
@@ -150,6 +159,7 @@ class CompanyFormTests(unittest.TestCase):
 
     def test_valid_values_are_trimmed(self) -> None:
         dialog = CompanyDialog()
+        self.assertEqual(dialog.windowTitle(), "Nova empresa")
         dialog.name_edit.setText("  Acme ")
         dialog.sector_edit.setText("Retail")
         self.assertEqual(dialog.values(), CompanyValues("Acme", "Retail"))
@@ -158,12 +168,10 @@ class CompanyFormTests(unittest.TestCase):
 
     def test_blank_field_keeps_the_form_open_and_names_the_field(self) -> None:
         dialog = CompanyDialog("Acme", "")
-        self.assertEqual(dialog.windowTitle(), "Edit company")
+        self.assertEqual(dialog.windowTitle(), "Editar empresa")
         dialog.accept()
         self.assertNotEqual(dialog.result(), QDialog.DialogCode.Accepted)
-        self.assertEqual(
-            dialog.error_label.text(), "Invalid value: Sector: a non-empty value is required."
-        )
+        self.assertEqual(dialog.error_label.text(), "Setor: preencha este campo")
 
 
 class StartUpTests(unittest.TestCase):
@@ -179,8 +187,8 @@ class StartUpTests(unittest.TestCase):
             self.assertEqual(status, OPEN_FAILURE_STATUS)
             self.assertEqual(path.read_bytes(), b"not a database at all")
             self.assertEqual(len(errors), 1)
-            self.assertTrue(errors[0].startswith("Cannot open the database: "))
-            self.assertTrue(errors[0].endswith("The file was not changed."))
+            self.assertTrue(errors[0].startswith("Não foi possível abrir o banco de dados: "))
+            self.assertTrue(errors[0].endswith("O arquivo não foi alterado."))
 
     def test_new_file_opens_and_the_repository_is_closed(self) -> None:
         with temporary_database() as path:
@@ -196,3 +204,24 @@ class StartUpTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DemoFlowTests(StoredWindowTestCase):
+    def test_demo_button_creates_stores_and_opens_the_demo_company(self) -> None:
+        window = self.open_window()
+        window.page("home").demo_button.click()
+        self.assertIs(window.current_page, window.page("overview"))
+        self.assertEqual(len(self.prompter.notices), 1)
+        self.assertTrue(
+            self.prompter.notices[0].startswith("Pronto! A empresa “Café Aurora (demo)”")
+        )
+        self.assertEqual(len(window.page("overview").cards), 6)
+        stored = self.reopen().workspaces[0]
+        self.assertEqual(len(stored.products), 6)
+        window.go("home")
+        window.page("home").demo_button.click()  # second time: selects it, no duplicate
+        self.assertEqual(len(window.session.workspaces), 1)
+        self.assertEqual(
+            window.statusBar().currentMessage(),
+            "A empresa de demonstração já existe; ela foi selecionada.",
+        )

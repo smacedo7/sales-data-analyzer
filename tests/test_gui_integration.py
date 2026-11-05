@@ -11,25 +11,18 @@ from support.qt import StoredWindowTestCase, WindowTestCase
 from sales_data_analyzer.application import ItemInput, PersistenceError
 from sales_data_analyzer.gui import _report_uncaught
 from sales_data_analyzer.gui.forms import CompanyValues, ProductValues, SaleValues
-from sales_data_analyzer.gui.pages import (
-    AnalysesPage,
-    CatalogPage,
-    ChartsPage,
-    ForecastPage,
-    SalesPage,
-)
-from sales_data_analyzer.gui.tables import cells
+from sales_data_analyzer.gui.widgets import cells
 
 from support.databases import row_counts
 from support.sessions import daily_session
 
 FIXTURES = Path(__file__).parent / "fixtures"
-NOT_SAVED = "Not done: the database could not be updated. Nothing was changed."
+NOT_SAVED = "Não foi possível gravar no banco de dados. Nada foi alterado."
 
 
-def page(window, kind):
-    """Return the window's page of the given class."""
-    return next(p for p in window.pages if isinstance(p, kind))
+def page(window, key):
+    """Return the window's page with the given navigation key."""
+    return window.page(key)
 
 
 class ButtonWiringTests(WindowTestCase):
@@ -38,11 +31,13 @@ class ButtonWiringTests(WindowTestCase):
     def test_every_action_button_runs_its_handler(self) -> None:
         win = self.window(daily_session(35))
         self.prompter.queue("company", CompanyValues("Bolt", "Tools"))
-        win.new_company_button.click()
+        page(win, "home").new_button.click()
         self.assertEqual(win.session.current.company.name, "Bolt")
-        win.company_box.activated.emit(1)
+        win.go("home")
+        page(win, "home").open_buttons[0].click()
+        self.assertEqual(win.session.current.company.name, "Acme")
 
-        catalog, sales = page(win, CatalogPage), page(win, SalesPage)
+        catalog, sales = page(win, "catalog"), page(win, "sales")
         self.prompter.queue("product", ProductValues("P3", "Clip", "Office"))
         catalog.register_button.click()
         self.prompter.queue(
@@ -54,16 +49,16 @@ class ButtonWiringTests(WindowTestCase):
         sales.record_button.click()
         self.assertIn("X1", [row[0] for row in cells(sales.table)])
 
-        analyses = page(win, AnalysesPage)
-        analyses.show_button.click()
-        self.assertTrue(analyses.output.toPlainText().startswith("Financial analysis - Acme"))
-        forecast = page(win, ForecastPage)
+        analyses = page(win, "analyses")
+        analyses.choose("month")
+        self.assertEqual(analyses.shown.title, "Vendas por mês")
+        forecast = page(win, "forecast")
         forecast.compare_button.click()
-        self.assertTrue(forecast.output.toPlainText().startswith("Forecast comparison - Acme"))
+        self.assertEqual(forecast.shown.tables[0].title, "Comparação de métodos")
         forecast.use_method_button.click()
         forecast.linear_button.click()
-        self.assertTrue(forecast.output.toPlainText().startswith("Revenue forecast - Acme"))
-        charts = page(win, ChartsPage)
+        self.assertEqual(forecast.shown.tables[0].title, "Previsão linear")
+        charts = page(win, "charts")
         charts.refresh_button.click()
         self.assertEqual(len(charts.canvases), 3)
         win.all_data_button.click()
@@ -80,27 +75,27 @@ class RollbackTests(StoredWindowTestCase):
         self.prompter.queue("company", CompanyValues("Acme", "Retail"))
         self.win.new_company()
         self.prompter.queue("product", ProductValues("P1", "Pen", "Office"))
-        page(self.win, CatalogPage).register_product()
+        page(self.win, "catalog").register_product()
         self.repository = self.win.session.repository
 
     def assert_unchanged(self, before: dict[str, int], catalog: list, sales: list) -> None:
         self.assertEqual(self.prompter.warnings, [NOT_SAVED])
         self.assertEqual(row_counts(self.path), before)
-        self.assertEqual(cells(page(self.win, CatalogPage).table), catalog)
-        self.assertEqual(cells(page(self.win, SalesPage).table), sales)
+        self.assertEqual(cells(page(self.win, "catalog").table), catalog)
+        self.assertEqual(cells(page(self.win, "sales").table), sales)
 
     def snapshot(self):
         return (
             row_counts(self.path),
-            cells(page(self.win, CatalogPage).table),
-            cells(page(self.win, SalesPage).table),
+            cells(page(self.win, "catalog").table),
+            cells(page(self.win, "sales").table),
         )
 
     def test_register_product(self) -> None:
         before = self.snapshot()
         self.prompter.queue("product", ProductValues("P2", "Ink", "Supplies"))
         with mock.patch.object(self.repository, "add_product", side_effect=PersistenceError()):
-            page(self.win, CatalogPage).register_product()
+            page(self.win, "catalog").register_product()
         self.assert_unchanged(*before)
 
     def test_record_sale(self) -> None:
@@ -110,14 +105,14 @@ class RollbackTests(StoredWindowTestCase):
         )
         self.prompter.queue("sale", values)
         with mock.patch.object(self.repository, "add_sales", side_effect=PersistenceError()):
-            page(self.win, SalesPage).record_sale()
+            page(self.win, "sales").record_sale()
         self.assert_unchanged(*before)
 
     def test_import(self) -> None:
         before = self.snapshot()
         self.prompter.queue("open_csv", FIXTURES / "valid_sales.csv")
         with mock.patch.object(self.repository, "add_sales", side_effect=PersistenceError()):
-            page(self.win, SalesPage).import_csv()
+            page(self.win, "sales").import_csv()
         self.assert_unchanged(*before)
         self.assertEqual(self.prompter.notices, [])
 
@@ -128,12 +123,12 @@ class ReopenTests(StoredWindowTestCase):
         self.prompter.queue("company", CompanyValues("Acme", "Retail"))
         win.new_company()
         self.prompter.queue("open_csv", FIXTURES / "valid_sales.csv")
-        page(win, SalesPage).import_csv()
-        sales = page(win, SalesPage)
+        page(win, "sales").import_csv()
+        sales = page(win, "sales")
         sales.select("002")
         self.prompter.queue("confirm", True, True)
         sales.delete_sale()
-        catalog = page(win, CatalogPage)
+        catalog = page(win, "catalog")
         catalog.select("008")
         catalog.delete_product()  # unsold once sale 002 is gone
 
@@ -157,13 +152,13 @@ class SafetyTests(WindowTestCase):
     def test_failing_redraw_after_a_failure_is_reported_once(self) -> None:
         win = self.window(daily_session(3))
         self.prompter.queue("company", CompanyValues("Acme", "X"))  # duplicate name
-        with mock.patch.object(page(win, SalesPage), "refresh", side_effect=RuntimeError()):
+        with mock.patch.object(page(win, "sales"), "refresh", side_effect=RuntimeError()):
             win.new_company()
         self.assertEqual(
             self.prompter.warnings,
             [
-                "Not done: a company with this name already exists.",
-                "Unexpected error (RuntimeError). Your data is unchanged.",
+                "Já existe uma empresa com esse nome (maiúsculas e espaços não contam).",
+                "Ocorreu um erro inesperado (RuntimeError). Seus dados não foram alterados.",
             ],
         )
 
@@ -171,7 +166,7 @@ class SafetyTests(WindowTestCase):
         win = self.window()
         hook = _report_uncaught(win)
         hook(ValueError, ValueError("bad"), None)
-        self.assertEqual(self.prompter.warnings, ["Not done: bad."])
+        self.assertEqual(self.prompter.warnings, ["Um valor não é válido: bad"])
 
 
 if __name__ == "__main__":

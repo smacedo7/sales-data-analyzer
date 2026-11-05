@@ -1,104 +1,99 @@
-"""Analyses tab: financial, product, temporal, weekday, category and period comparison."""
+"""Analyses page: one translated table per analysis of the active selection."""
 
 from datetime import date
 
-from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDateEdit,
-    QGroupBox,
+    QFrame,
     QHBoxLayout,
-    QLabel,
-    QPlainTextEdit,
-    QPushButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from sales_data_analyzer.application import Selection
 
 from .. import reports
-from ..main_window import MainWindow, Page, to_date, to_qdate
+from ..messages import describe_failure
+from ..main_window import MainWindow, Page, scrolling, to_date, to_qdate
+from ..texts import t
+from ..widgets import button, clear_layout, label, page_header, table_widget
 
-TIMEZONE_NOTE = "These sales have time zone offsets: dates are interpreted in UTC."
-PROMPT = "Choose an analysis and press Show."
-
-
-def report_view() -> QPlainTextEdit:
-    """Return a read-only monospace panel for terminal-formatted results."""
-    view = QPlainTextEdit()
-    view.setReadOnly(True)
-    font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
-    font.setFamilies(["Menlo", "Consolas", "DejaVu Sans Mono", "Courier New", font.family()])
-    font.setStyleHint(QFont.StyleHint.TypeWriter)
-    font.setFixedPitch(True)
-    view.setFont(font)
-    view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-    return view
+COMPARE = "compare"
+"""Selector key of the two-period comparison."""
 
 
 def date_edit(day: date) -> QDateEdit:
-    """Return an ISO-formatted date field with a calendar popup."""
+    """Return a dd/mm/yyyy date field with a calendar popup."""
     edit = QDateEdit()
     edit.setCalendarPopup(True)
-    edit.setDisplayFormat("yyyy-MM-dd")
+    edit.setDisplayFormat("dd/MM/yyyy")
     edit.setDate(to_qdate(day))
     return edit
 
 
 class AnalysesPage(Page):
-    """Shows one analysis of the active selection, worded like the terminal."""
+    """Shows the chosen analysis as soon as it is picked."""
 
-    title = "Analyses"
+    key = "analyses"
 
     def __init__(self, window: MainWindow) -> None:
-        """Build the view selector, the options and the result panel."""
+        """Build the selector, the options, the comparison dates and the result area."""
         super().__init__(window)
-        self._company_shown = None
         self.view_box = QComboBox()
-        for key, label in reports.ANALYSIS_VIEWS:
-            self.view_box.addItem(label, key)
-        self.zero_box = QCheckBox("Treat days without sales as zero")
-        self.missing_label = QLabel()
-        self.show_button = QPushButton("Show")
-        self.show_button.clicked.connect(self.show_analysis)
+        for view in (*reports.ANALYSIS_VIEWS, COMPARE):
+            self.view_box.addItem(t(f"analyses.view.{view}"), view)
+        self.view_box.currentIndexChanged.connect(lambda _: self.show_analysis())
+        self.zero_box = QCheckBox(t("analyses.zero_days"))
+        self.zero_box.toggled.connect(lambda _: self.show_analysis())
+        self.missing_label = label("", "note")
 
         today = date.today()
         self.first_start, self.first_end = date_edit(today), date_edit(today)
         self.second_start, self.second_end = date_edit(today), date_edit(today)
-        self.compare_button = QPushButton("Compare periods")
-        self.compare_button.clicked.connect(self.compare_periods)
-        periods = QGroupBox("Compare two periods (both days included)")
-        row = QHBoxLayout(periods)
-        for label, edit in (
-            ("First", self.first_start),
-            ("to", self.first_end),
-            ("Second", self.second_start),
-            ("to", self.second_end),
+        self.compare_button = button(t("analyses.compare"), self.compare_periods, primary=True)
+        self.periods = QFrame()
+        row = QHBoxLayout(self.periods)
+        row.setContentsMargins(0, 0, 0, 0)
+        for text, edit in (
+            (t("analyses.first"), self.first_start),
+            (t("header.to"), self.first_end),
+            (t("analyses.second"), self.second_start),
+            (t("header.to"), self.second_end),
         ):
-            row.addWidget(QLabel(label))
+            row.addWidget(label(text, wrap=False))
             row.addWidget(edit)
         row.addWidget(self.compare_button)
         row.addStretch()
+        self._company_shown = None
 
-        self.output = report_view()
         options = QHBoxLayout()
         options.addWidget(self.view_box)
-        options.addWidget(self.show_button)
         options.addWidget(self.zero_box)
-        options.addWidget(self.missing_label, 1)
-        layout = QVBoxLayout(self)
+        options.addStretch()
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(12)
+        layout.addLayout(page_header(t("analyses.title"), t("analyses.subtitle")))
         layout.addLayout(options)
-        layout.addWidget(periods)
-        layout.addWidget(self.output, 1)
+        layout.addWidget(self.missing_label)
+        layout.addWidget(self.periods)
+        self.result = QVBoxLayout()
+        layout.addLayout(self.result)
+        layout.addStretch()
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scrolling(content))
+        self.shown: reports.Table | None = None
 
     def refresh(self) -> None:
-        """Clear the previous result and update the missing-day notice.
+        """Update the missing-day option and redraw the chosen analysis.
 
         When another company is selected, both comparison periods start as the
-        period shown in the top bar.
+        period shown in the header.
         """
-        self.output.setPlainText(PROMPT)
         if self.session.current is not self._company_shown:
             self._company_shown = self.session.current
             bar = self.window_
@@ -106,29 +101,49 @@ class AnalysesPage(Page):
                                (self.second_start, self.second_end)):  # fmt: skip
                 start.setDate(bar.start_edit.date())
                 end.setDate(bar.end_edit.date())
-        missing = reports.missing_days(self.session) if self.session.current is not None else 0
+        missing = reports.missing_days(self.session) if self.session.current else 0
         self.zero_box.setEnabled(bool(missing))
-        if not missing:
+        if not missing and self.zero_box.isChecked():
+            self.zero_box.blockSignals(True)
             self.zero_box.setChecked(False)
-        notes = [reports.missing_days_notice(missing)] if missing else []
-        if self.session.current is not None and self.session.selected_sales().sales:
-            if self.session.data_is_aware():
-                notes.append(TIMEZONE_NOTE)
-        self.missing_label.setText(" ".join(notes))
+            self.zero_box.blockSignals(False)
+        self.missing_label.setText(t("analyses.missing", count=missing) if missing else "")
+        self.missing_label.setVisible(bool(missing))
+        self.show_analysis()
 
-    def choose(self, view: reports.AnalysisView) -> None:
-        """Select an analysis in the selector (used by tests and shortcuts)."""
+    def choose(self, view: str) -> None:
+        """Select an analysis in the selector (shows it at once)."""
         self.view_box.setCurrentIndex(self.view_box.findData(view))
 
+    def _show(self, widget: QWidget) -> None:
+        """Replace the result area with widget."""
+        clear_layout(self.result)
+        self.result.addWidget(widget)
+
     def show_analysis(self) -> None:
-        """Show the chosen analysis of the active selection."""
+        """Show the chosen analysis, the comparison form, or the empty state."""
         view = self.view_box.currentData()
-        zero = self.zero_box.isChecked()
-        lines = self.window_.attempt(
-            lambda: reports.analysis_lines(self.session, view, zero_missing_days=zero)
-        )
-        if lines is not None:
-            self.output.setPlainText("\n".join(lines))
+        self.periods.setVisible(view == COMPARE)
+        self.zero_box.setVisible(view in ("day", "week", "month", "weekday"))
+        self.shown = None
+        clear_layout(self.result)
+        if self.session.current is None:
+            return
+        if view == COMPARE:
+            return
+        empty = self.window_.empty_state()
+        if empty is not None:
+            self._show(empty)
+            return
+        try:  # also runs during refresh, so failures are shown inline, never re-refreshed
+            table = reports.analysis_table(
+                self.session, view, zero_missing_days=self.zero_box.isChecked()
+            )
+        except Exception as error:
+            self._show(label(describe_failure(error), "banner"))
+            return
+        self.shown = table
+        self._show(table_widget(table))
 
     def set_periods(self, first: tuple[date, date], second: tuple[date, date]) -> None:
         """Fill the four comparison dates (used by tests)."""
@@ -142,11 +157,12 @@ class AnalysesPage(Page):
     def compare_periods(self) -> None:
         """Compare the two periods; the active selection is unchanged."""
 
-        def compare() -> list[str]:
+        def compare() -> reports.Table:
             first = Selection(to_date(self.first_start.date()), to_date(self.first_end.date()))
             second = Selection(to_date(self.second_start.date()), to_date(self.second_end.date()))
-            return reports.period_comparison_lines(self.session, first, second)
+            return reports.period_comparison_table(self.session, first, second)
 
-        lines = self.window_.attempt(compare)
-        if lines is not None:
-            self.output.setPlainText("\n".join(lines))
+        table = self.window_.attempt(compare)
+        if table is not None:
+            self.shown = table
+            self._show(table_widget(table))

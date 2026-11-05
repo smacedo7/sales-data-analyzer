@@ -6,12 +6,11 @@ the slowest service), from the same figures that the PNG writer saves.
 
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
-from sales_data_analyzer.cli.formatting import explain_forecast_error
-
+from .. import reports
 from ..main_window import MainWindow, Page
+from ..texts import t
 
-PROMPT = "Press Refresh charts to draw the charts of the current selection."
-NO_FILE = "No file was written."
+PROMPT = ""
 CHART_PIXELS_PER_INCH = 90
 """On-screen height per inch of figure, so charts scroll instead of shrinking."""
 
@@ -19,14 +18,14 @@ CHART_PIXELS_PER_INCH = 90
 class ChartsPage(Page):
     """Daily (with estimate), monthly and top-product charts of the active selection."""
 
-    title = "Charts"
+    key = "charts"
 
     def __init__(self, window: MainWindow) -> None:
         """Build the buttons, the note and the scrolling chart area."""
         super().__init__(window)
-        self.refresh_button = QPushButton("Refresh charts")
+        self.refresh_button = QPushButton(t("charts.title"))
         self.refresh_button.clicked.connect(self.draw)
-        self.save_button = QPushButton("Save as PNG…")
+        self.save_button = QPushButton(t("charts.save"))
         self.save_button.clicked.connect(self.save)
         self.note_label = QLabel(PROMPT)
         self.note_label.setWordWrap(True)
@@ -61,8 +60,9 @@ class ChartsPage(Page):
     def _note(data) -> str:  # data: ChartData
         """Return the line explaining a missing estimate, or a neutral one."""
         if data.forecast_refusal is not None:
-            return f"Forecast not drawn: {explain_forecast_error(data.forecast_refusal)}"
-        return f"Estimate line: {data.forecast_title} (see the Forecast tab for its errors)."
+            reason = reports.explain_forecast_refusal(data.forecast_refusal)
+            return t("charts.forecast_off", reason=reason)
+        return t("charts.forecast_on", title=data.forecast_title)
 
     def draw(self) -> None:
         """Draw the charts of the current selection inside the window."""
@@ -103,7 +103,9 @@ class ChartsPage(Page):
             written = save_charts(
                 ChartInputs.from_data(data),
                 folder,
-                replace=lambda path: self.window_.prompter.confirm(f"Replace {path.name}?"),
+                replace=lambda path: self.window_.prompter.confirm(
+                    t("charts.replace", name=path.name)
+                ),
             )
             return data, written
 
@@ -111,7 +113,11 @@ class ChartsPage(Page):
         if saved is None:
             return
         data, written = saved
-        lines = [f"Saved: {path}" for path in written] or [NO_FILE]
+        lines = (
+            [t("charts.saved", files="\n".join(str(p) for p in written))]
+            if written
+            else [t("charts.nothing_saved")]
+        )
         if data.forecast_refusal is not None:
             lines.insert(0, self._note(data))
         self.window_.prompter.inform("\n".join(lines))

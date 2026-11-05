@@ -10,13 +10,15 @@ from unittest import mock
 from support.qt import WindowTestCase
 
 from sales_data_analyzer.charts.images import DAILY_FILE, MONTHLY_FILE, PRODUCTS_FILE
-from sales_data_analyzer.gui.messages import FOLDER_NOT_WRITABLE
 from sales_data_analyzer.gui.pages import ChartsPage
-from sales_data_analyzer.gui.pages.charts import NO_FILE, PROMPT
+from sales_data_analyzer.gui.pages.charts import PROMPT
 
 from support.sessions import daily_session
 
+NO_FILE = "Nenhum arquivo foi gravado."
+
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+FOLDER_ERROR = "Não foi possível gravar nessa pasta. Nenhum arquivo foi criado."
 
 
 class ChartsTestCase(WindowTestCase):
@@ -47,7 +49,7 @@ class DrawTests(ChartsTestCase):
         )
         self.assertEqual(
             page.note_label.text(),
-            f"Estimate line: {data.forecast_title} (see the Forecast tab for its errors).",
+            f"Linha tracejada: estimativas do método “{data.forecast_title}” (veja os erros na área Previsões).",
         )
 
     def test_charts_keep_their_height_and_stack_without_overlapping(self) -> None:
@@ -55,7 +57,7 @@ class DrawTests(ChartsTestCase):
 
         page = self.page_for(daily_session(21))
         self.win.show()
-        self.win.tabs.setCurrentWidget(page)
+        self.win.go("charts")
         self.app.processEvents()
         page.draw()
         self.app.processEvents()
@@ -71,8 +73,8 @@ class DrawTests(ChartsTestCase):
         page = self.page_for(daily_session(5))
         page.draw()
         self.assertEqual(len(page.canvases[0].figure.axes[0].lines), 1)
-        self.assertTrue(page.note_label.text().startswith("Forecast not drawn: "))
-        self.assertIn("at least 12 needed", page.note_label.text())
+        self.assertTrue(page.note_label.text().startswith("Previsão não desenhada: "))
+        self.assertIn("pelo menos 12 dias", page.note_label.text())
 
     def test_empty_selection_is_refused_and_charts_are_cleared_on_changes(self) -> None:
         page = self.page_for(daily_session(5))
@@ -81,7 +83,7 @@ class DrawTests(ChartsTestCase):
         self.win.refresh()
         self.assertEqual((page.canvases, page.note_label.text()), ([], PROMPT))
         page.draw()
-        self.assertEqual(self.prompter.warnings, ["No sales in the current selection."])
+        self.assertEqual(self.prompter.warnings, ["Não há vendas no período selecionado."])
         self.assertEqual(page.canvases, [])
 
 
@@ -96,7 +98,7 @@ class SaveTests(ChartsTestCase):
         for name in names:
             self.assertEqual((folder / name).read_bytes()[:8], PNG_SIGNATURE)
         self.assertEqual(len(self.prompter.notices), 1)
-        self.assertEqual(self.prompter.notices[0].count("Saved: "), 3)
+        self.assertEqual(self.prompter.notices[0].count(".png"), 3)
 
     def test_existing_files_are_kept_or_replaced_as_answered(self) -> None:
         page = self.page_for(daily_session(5))
@@ -106,10 +108,10 @@ class SaveTests(ChartsTestCase):
         self.prompter.queue("choose_folder", folder, folder)
         self.prompter.queue("confirm", False, False, False, False, True, False)
         page.save()
-        self.assertEqual(self.prompter.questions[:3], [f"Replace {n}?" for n in
+        self.assertEqual(self.prompter.questions[:3], [f"O arquivo {n} já existe. Substituir?" for n in
                          (DAILY_FILE, MONTHLY_FILE, PRODUCTS_FILE)])  # fmt: skip
         notice = self.prompter.notices[0].split("\n")
-        self.assertTrue(notice[0].startswith("Forecast not drawn: "))
+        self.assertTrue(notice[0].startswith("Previsão não desenhada: "))
         self.assertEqual(notice[-1], NO_FILE)
         page.save()
         self.assertEqual((folder / DAILY_FILE).read_bytes(), b"old")
@@ -124,7 +126,7 @@ class SaveTests(ChartsTestCase):
         blocker.write_bytes(b"x")
         self.prompter.queue("choose_folder", blocker / "charts")
         page.save()
-        self.assertEqual(self.prompter.warnings, [FOLDER_NOT_WRITABLE])
+        self.assertEqual(self.prompter.warnings, [FOLDER_ERROR])
         self.assertEqual([p.name for p in folder.iterdir()], ["file"])
 
     def test_rendering_failure_is_reported_and_no_file_is_left(self) -> None:
@@ -135,7 +137,7 @@ class SaveTests(ChartsTestCase):
             "sales_data_analyzer.charts.images._render", side_effect=OSError("disk full")
         ):
             page.save()
-        self.assertEqual(self.prompter.warnings, [FOLDER_NOT_WRITABLE])
+        self.assertEqual(self.prompter.warnings, [FOLDER_ERROR])
         self.assertEqual(list(folder.iterdir()), [])
 
     def test_cancelled_folder_dialog_does_nothing(self) -> None:

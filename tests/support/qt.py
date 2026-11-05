@@ -36,7 +36,15 @@ class ScriptedPrompter:
         self.questions: list[str] = []
         self.answers: dict[str, deque] = {
             key: deque()
-            for key in ("confirm", "open_csv", "choose_folder", "company", "product", "sale")
+            for key in (
+                "confirm",
+                "open_csv",
+                "choose_folder",
+                "save_pdf",
+                "company",
+                "product",
+                "sale",
+            )  # fmt: skip
         }
 
     def queue(self, kind: str, *answers: object) -> "ScriptedPrompter":
@@ -64,6 +72,10 @@ class ScriptedPrompter:
 
     def choose_folder(self) -> Path | None:
         return self._next("choose_folder")
+
+    def save_pdf(self, suggested_name: str) -> Path | None:
+        self.questions.append(f"save pdf ({suggested_name})")
+        return self._next("save_pdf")
 
     def company_form(self, name: str = "", sector: str = ""):
         self.questions.append(f"company form ({name})")

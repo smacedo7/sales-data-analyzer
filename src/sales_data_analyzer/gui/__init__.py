@@ -46,6 +46,7 @@ def run(argv: Sequence[str] | None = None, *, show_error=None, execute: bool = T
     closed at once (used by tests to check start-up without an event loop).
     """
     arguments = _parse_arguments(argv)
+    from .texts import t
     from sales_data_analyzer.application import SalesSession
     from sales_data_analyzer.persistence import (
         DatabaseOpenError,
@@ -58,19 +59,19 @@ def run(argv: Sequence[str] | None = None, *, show_error=None, execute: bool = T
         from PySide6.QtWidgets import QMessageBox
 
         def show_error(text: str) -> None:
-            QMessageBox.critical(None, "Sales Data Analyzer", text)
+            QMessageBox.critical(None, t("app.title"), text)
 
     path = arguments.database if arguments.database is not None else default_database_path()
     try:
         repository = SQLiteSalesRepository.open(path)
     except DatabaseOpenError as error:
-        show_error(f"Cannot open the database: {error}. The file was not changed.")
+        show_error(t("app.open_failed", reason=error))
         return OPEN_FAILURE_STATUS
     try:
         try:
             session = SalesSession.open(repository)
         except DatabaseOpenError as error:
-            show_error(f"Cannot open the database: {error}. The file was not changed.")
+            show_error(t("app.open_failed", reason=error))
             return OPEN_FAILURE_STATUS
         from .main_window import MainWindow
 

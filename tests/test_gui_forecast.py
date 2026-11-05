@@ -1,59 +1,66 @@
-"""Desktop window, user story 5: linear forecast and forecast method comparison."""
+"""Desktop window: linear forecast and forecast method comparison, in Portuguese."""
 
 from datetime import timedelta, timezone
 import unittest
 
 from support.qt import WindowTestCase
 
-from sales_data_analyzer.application import InsufficientHistoryError
-from sales_data_analyzer.cli.formatting import (
-    explain_forecast_error,
-    format_comparison,
-    format_comparison_estimates,
-    format_forecast,
-)
-from sales_data_analyzer.gui.pages import ForecastPage
-from sales_data_analyzer.gui.pages.forecast import CANCELLED, ZERO_QUESTION
+from sales_data_analyzer.gui.texts import decimal_number, day, method_title
 
 from support.sessions import daily_session
 
-SCOPE = "Acme - all data"
-
 
 class ForecastTestCase(WindowTestCase):
-    def page_for(self, session) -> ForecastPage:
+    def page_for(self, session):
         self.session = session
         win = self.window(session)
-        return next(p for p in win.pages if isinstance(p, ForecastPage))
+        return win.page("forecast")
 
-    def text(self, page: ForecastPage) -> list[str]:
-        return page.output.toPlainText().split("\n")
+    def notes(self, page) -> str:
+        return "\n".join(page.shown.notes)
 
 
 class LinearForecastTests(ForecastTestCase):
-    def test_result_matches_the_terminal_formatter(self) -> None:
+    def test_tables_show_the_service_result(self) -> None:
         page = self.page_for(daily_session(12))
         page.horizon_box.setValue(3)
         page.test_days_box.setValue(4)
-        page.run_linear()
-        expected = format_forecast(self.session.run_forecast(horizon=3, test_days=4), SCOPE)
-        self.assertEqual(self.text(page), expected)
+        page.linear_button.click()
+        result = self.session.run_forecast(horizon=3, test_days=4)
+        errors, estimates = page.shown.tables
+        self.assertEqual(
+            errors.rows[0],
+            ("Reta (modelo)", decimal_number(result.model_errors.mae),
+             decimal_number(result.model_errors.rmse)),
+        )  # fmt: skip
+        self.assertEqual(errors.notes, ("Dias de treino: 8 · dias de teste: 4",))
+        self.assertEqual(
+            estimates.rows, tuple((day(p.day), decimal_number(p.revenue)) for p in result.future)
+        )
+        self.assertIn("Limitações:", self.notes(page))
         self.assertEqual(self.prompter.warnings, [])
 
     def test_short_history_states_available_and_needed_days(self) -> None:
         page = self.page_for(daily_session(4))
         page.run_linear()
-        self.assertEqual(self.text(page), [explain_forecast_error(InsufficientHistoryError(4, 7))])
+        self.assertEqual(
+            page.message,
+            "Histórico insuficiente: 4 dias disponíveis, são necessários pelo menos 7 dias. "
+            "Importe ou registre mais dias.",
+        )
 
     def test_missing_days_need_confirmation(self) -> None:
         page = self.page_for(daily_session(12, skip=(3,)))
         self.prompter.queue("confirm", False, True)
         page.run_linear()
-        self.assertEqual(self.text(page), [CANCELLED])
-        self.assertTrue(self.prompter.questions[0].endswith(ZERO_QUESTION))
+        self.assertEqual(page.message, "Previsão cancelada.")
+        self.assertTrue(self.prompter.questions[0].startswith("Há dias sem vendas"))
+        self.assertIn(
+            "Responda sim só se os registros estiverem completos", self.prompter.questions[0]
+        )
         page.run_linear()
-        expected = format_forecast(self.session.run_forecast(missing_days="zero"), SCOPE)
-        self.assertEqual(self.text(page), expected)
+        result = self.session.run_forecast(missing_days="zero")
+        self.assertEqual(page.shown.tables[1].rows[0][1], decimal_number(result.future[0].revenue))
         self.assertNoPendingAnswers()
 
     def test_offset_data_groups_days_by_the_typed_offset(self) -> None:
@@ -62,11 +69,12 @@ class LinearForecastTests(ForecastTestCase):
         page.offset_edit.setText("-03:00")
         page.run_linear()
         result = self.session.run_forecast(utc_offset=timedelta(hours=-3))
-        self.assertEqual(self.text(page), format_forecast(result, SCOPE))
+        self.assertEqual(page.shown.tables[1].rows[0][0], day(result.future[0].day))
         page.offset_edit.setText("3")
         page.run_linear()
         self.assertEqual(
-            self.prompter.warnings, ["Not done: expected a UTC offset such as -03:00 or +00:00."]
+            page.message,
+            "Fuso UTC (+HH:MM ou -HH:MM): use um deslocamento como -03:00 ou +00:00",
         )
 
     def test_naive_data_hides_the_offset(self) -> None:
@@ -75,16 +83,21 @@ class LinearForecastTests(ForecastTestCase):
 
 
 class ComparisonTests(ForecastTestCase):
-    def test_comparison_matches_the_formatter_and_lists_the_methods(self) -> None:
+    def test_comparison_lists_the_methods_in_portuguese(self) -> None:
         page = self.page_for(daily_session(35))
-        page.run_comparison()
+        page.compare_button.click()
         result = self.session.compare_forecasts()
-        expected = format_comparison(result, SCOPE) + [""] + format_comparison_estimates(result)
-        self.assertEqual(self.text(page), expected)
+        scores = page.shown.tables[0]
+        self.assertEqual(
+            [row[0] for row in scores.rows],
+            [method_title(s.method_key, s.title) for s in result.scores],
+        )
+        self.assertEqual(scores.rows[0][2], decimal_number(result.scores[0].mae))
         titles = [page.method_box.itemText(i) for i in range(page.method_box.count())]
-        self.assertEqual(titles, [score.title for score in result.scores])
+        self.assertEqual(titles, [row[0] for row in scores.rows])
         self.assertEqual(page.method_box.currentData(), result.chosen_key)
         self.assertTrue(page.use_method_button.isEnabled())
+        self.assertIn("não há intervalo de confiança", self.notes(page))
 
     def test_choosing_another_method_shows_its_estimates(self) -> None:
         page = self.page_for(daily_session(35))
@@ -94,25 +107,31 @@ class ComparisonTests(ForecastTestCase):
             if s.method_key != page.method_box.currentData()
         )  # fmt: skip
         page.method_box.setCurrentIndex(page.method_box.findData(other.method_key))
-        page.use_method()
+        page.use_method_button.click()
         result = self.session.compare_forecasts(method=other.method_key)
-        self.assertEqual(self.text(page)[-len(format_comparison_estimates(result)):],
-                         format_comparison_estimates(result))  # fmt: skip
-        self.assertIn(f"Estimates ({other.title})", page.output.toPlainText())
+        estimates = page.shown.tables[1]
+        self.assertTrue(
+            estimates.title.startswith(f"Estimativas ({method_title(other.method_key, '')})")
+        )
+        self.assertEqual(
+            estimates.rows[0][1].split(" ")[0], decimal_number(result.future[0].revenue)
+        )
 
     def test_weak_evidence_names_no_better_method(self) -> None:
         page = self.page_for(daily_session(13))
         page.run_comparison()
-        text = page.output.toPlainText()
-        self.assertIn("Evidence too limited to name a lowest-error method", text)
-        self.assertNotIn("beat", text)
-        self.assertIn("Estimates (Last value)", text)
+        notes = self.notes(page)
+        self.assertIn("Evidência limitada", notes)
+        self.assertNotIn("superou", notes)
+        self.assertTrue(page.shown.tables[1].title.startswith("Estimativas (Último valor)"))
 
     def test_short_history_is_refused_with_the_needed_days(self) -> None:
         page = self.page_for(daily_session(8))
         page.run_comparison()
         self.assertEqual(
-            self.text(page), ["Not done: 8 day(s) of history available, at least 12 needed."]
+            page.message,
+            "Histórico insuficiente: 8 dias disponíveis, são necessários pelo menos 12 dias. "
+            "Importe ou registre mais dias.",
         )
         self.assertFalse(page.use_method_button.isEnabled())
 
@@ -120,21 +139,22 @@ class ComparisonTests(ForecastTestCase):
         page = self.page_for(daily_session(35, skip=(10,)))
         self.prompter.queue("confirm", True)
         page.run_comparison()
-        self.assertIn("1 missing day were treated as zero", page.output.toPlainText())
+        self.assertIn("1 dia sem vendas foi contado como zero", self.notes(page))
         page.use_method()  # no second question: the answer is reused
-        self.assertIn("1 missing day were treated as zero", page.output.toPlainText())
+        self.assertIn("1 dia sem vendas foi contado como zero", self.notes(page))
         self.assertNoPendingAnswers()
 
     def test_use_method_before_a_comparison_is_explained(self) -> None:
         page = self.page_for(daily_session(35))
         page.use_method()
-        self.assertEqual(self.prompter.warnings, ["Not done: compare the methods first."])
+        self.assertEqual(self.prompter.warnings, ["Compare os métodos primeiro."])
 
     def test_changes_forget_the_previous_result(self) -> None:
         page = self.page_for(daily_session(35))
         page.run_comparison()
         page.window_.clear_period()
-        self.assertEqual(self.text(page), ["Choose the options and run a forecast."])
+        self.assertIsNone(page.shown)
+        self.assertTrue(page.message.startswith("Escolha as opções"))
         self.assertFalse(page.use_method_button.isEnabled())
 
 

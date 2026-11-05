@@ -33,6 +33,16 @@ from sales_data_analyzer.cli.parsing import (
 )
 from sales_data_analyzer.domain.product import Product
 
+from .texts import t
+
+PROBLEMS = {
+    parse_text: "form.problem.required",
+    parse_positive_int: "form.problem.integer",
+    parse_amount: "form.problem.amount",
+    parse_datetime: "form.problem.datetime",
+}
+"""Parser -> translated description of the expected format."""
+
 
 @dataclass(frozen=True)
 class CompanyValues:
@@ -74,6 +84,8 @@ class _Form(QDialog):
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText(t("common.ok"))
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(t("common.cancel"))
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
 
@@ -82,7 +94,7 @@ class _Form(QDialog):
         try:
             self.values()
         except InputError as error:
-            self.error_label.setText(f"Invalid value: {error}.")
+            self.error_label.setText(str(error))
             return
         super().accept()
 
@@ -92,11 +104,13 @@ class _Form(QDialog):
 
 
 def _parse(label: str, parser, text: str):
-    """Run parser on text, naming the field (never the typed value) in the error."""
+    """Run parser on text; the error names the field and the expected format, in the
+    window's language (never the typed value)."""
     try:
         return parser(text)
-    except InputError as error:
-        raise InputError(f"{label}: {error}") from None
+    except InputError:
+        problem = t(PROBLEMS.get(parser, "form.problem.required"))
+        raise InputError(t("form.error", field=label, problem=problem)) from None
 
 
 class CompanyDialog(_Form):
@@ -104,20 +118,20 @@ class CompanyDialog(_Form):
 
     def __init__(self, name: str = "", sector: str = "", parent: QWidget | None = None) -> None:
         """Create the form, optionally filled with the current values."""
-        super().__init__("Edit company" if name else "New company", parent)
+        super().__init__(t("form.company.edit" if name else "form.company.new"), parent)
         self.name_edit = QLineEdit(name)
         self.sector_edit = QLineEdit(sector)
         layout = QFormLayout(self)
-        layout.addRow("Name", self.name_edit)
-        layout.addRow("Sector", self.sector_edit)
+        layout.addRow(t("form.company.name"), self.name_edit)
+        layout.addRow(t("form.company.sector"), self.sector_edit)
         layout.addRow(self.error_label)
         layout.addRow(self.buttons)
 
     def values(self) -> CompanyValues:
         """Return trimmed non-empty name and sector or raise InputError."""
         return CompanyValues(
-            _parse("Name", parse_text, self.name_edit.text()),
-            _parse("Sector", parse_text, self.sector_edit.text()),
+            _parse(t("form.company.name"), parse_text, self.name_edit.text()),
+            _parse(t("form.company.sector"), parse_text, self.sector_edit.text()),
         )
 
 
@@ -126,29 +140,31 @@ class ProductDialog(_Form):
 
     def __init__(self, product: Product | None = None, parent: QWidget | None = None) -> None:
         """Create an empty form, or one for editing product (its ID cannot change)."""
-        super().__init__("Edit product" if product else "Register product", parent)
+        super().__init__(t("form.product.edit" if product else "form.product.new"), parent)
         self.id_edit = QLineEdit(product.id if product else "")
         self.id_edit.setReadOnly(product is not None)
         self.name_edit = QLineEdit(product.name if product else "")
         self.category_edit = QLineEdit(product.category if product else "")
         layout = QFormLayout(self)
-        layout.addRow("Product ID", self.id_edit)
-        layout.addRow("Name", self.name_edit)
-        layout.addRow("Category", self.category_edit)
+        layout.addRow(t("form.product.id"), self.id_edit)
+        layout.addRow(t("form.product.name"), self.name_edit)
+        layout.addRow(t("form.product.category"), self.category_edit)
         layout.addRow(self.error_label)
         layout.addRow(self.buttons)
 
     def values(self) -> ProductValues:
         """Return trimmed non-empty values or raise InputError."""
         return ProductValues(
-            _parse("Product ID", parse_text, self.id_edit.text()),
-            _parse("Name", parse_text, self.name_edit.text()),
-            _parse("Category", parse_text, self.category_edit.text()),
+            _parse(t("form.product.id"), parse_text, self.id_edit.text()),
+            _parse(t("form.product.name"), parse_text, self.name_edit.text()),
+            _parse(t("form.product.category"), parse_text, self.category_edit.text()),
         )
 
 
-ITEM_COLUMNS = ("Product", "Quantity", "Unit price", "Unit cost")
-"""Columns of the sale form's item table."""
+ITEM_COLUMN_KEYS = (
+    "form.sale.col.product", "form.sale.col.quantity", "form.sale.col.price", "form.sale.col.cost",
+)  # fmt: skip
+"""Text keys of the sale form's item table columns."""
 
 
 class SaleDialog(_Form):
@@ -161,29 +177,29 @@ class SaleDialog(_Form):
         parent: QWidget | None = None,
     ) -> None:
         """Create the form for the given catalog, with the date prefilled to now."""
-        super().__init__("Record sale", parent)
+        super().__init__(t("form.sale.title"), parent)
         self._products = products
         moment = (now or datetime.now()).replace(microsecond=0)
         self.id_edit = QLineEdit()
         self.datetime_edit = QLineEdit(moment.isoformat())
-        self.datetime_edit.setPlaceholderText("YYYY-MM-DDTHH:MM:SS, optional Z or +HH:MM")
-        self.items = QTableWidget(0, len(ITEM_COLUMNS))
-        self.items.setHorizontalHeaderLabels(ITEM_COLUMNS)
+        self.datetime_edit.setPlaceholderText(t("form.sale.datetime_hint"))
+        self.items = QTableWidget(0, len(ITEM_COLUMN_KEYS))
+        self.items.setHorizontalHeaderLabels([t(key) for key in ITEM_COLUMN_KEYS])
         self.items.horizontalHeader().setStretchLastSection(True)
-        add = QPushButton("Add item")
-        add.clicked.connect(self.add_item)
-        remove = QPushButton("Remove item")
-        remove.clicked.connect(self.remove_item)
+        add = QPushButton(t("form.sale.add_item"))
+        add.clicked.connect(lambda: self.add_item())
+        remove = QPushButton(t("form.sale.remove_item"))
+        remove.clicked.connect(lambda: self.remove_item())
         form = QFormLayout()
-        form.addRow("Sale ID", self.id_edit)
-        form.addRow("Date and time", self.datetime_edit)
+        form.addRow(t("form.sale.id"), self.id_edit)
+        form.addRow(t("form.sale.datetime"), self.datetime_edit)
         row = QHBoxLayout()
         row.addWidget(add)
         row.addWidget(remove)
         row.addStretch()
         layout = QVBoxLayout(self)
         layout.addLayout(form)
-        layout.addWidget(QLabel("Items (amounts as plain decimals, such as 10.50)"))
+        layout.addWidget(QLabel(t("form.sale.items")))
         layout.addWidget(self.items)
         layout.addLayout(row)
         layout.addWidget(self.error_label)
@@ -221,19 +237,24 @@ class SaleDialog(_Form):
 
     def values(self) -> SaleValues:
         """Return the typed sale or raise InputError naming the field and item."""
-        sale_id = _parse("Sale ID", parse_text, self.id_edit.text())
-        moment = _parse("Date and time", parse_datetime, self.datetime_edit.text())
+        sale_id = _parse(t("form.sale.id"), parse_text, self.id_edit.text())
+        moment = _parse(t("form.sale.datetime"), parse_datetime, self.datetime_edit.text())
         items = []
         for row in range(self.items.rowCount()):
-            label = f"Item {row + 1}"
+            item = t("form.sale.item", number=row + 1)
+
+            def field(key: str, item: str = item) -> str:
+                return f"{item}, {t(key).lower()}"
+
             product_id = self.items.cellWidget(row, 0).currentData()
             if product_id is None:
-                raise InputError(f"{label}: choose a product")
-            quantity = _parse(f"{label} quantity", parse_positive_int,
-                              self.items.cellWidget(row, 1).text())  # fmt: skip
-            price = _parse(
-                f"{label} unit price", parse_amount, self.items.cellWidget(row, 2).text()
+                problem = t("form.problem.product")
+                raise InputError(t("form.error", field=item, problem=problem))
+            cell = self.items.cellWidget
+            quantity = _parse(
+                field("form.sale.col.quantity"), parse_positive_int, cell(row, 1).text()
             )
-            cost = _parse(f"{label} unit cost", parse_amount, self.items.cellWidget(row, 3).text())
+            price = _parse(field("form.sale.col.price"), parse_amount, cell(row, 2).text())
+            cost = _parse(field("form.sale.col.cost"), parse_amount, cell(row, 3).text())
             items.append(ItemInput(product_id, quantity, price, cost))
         return SaleValues(sale_id, moment, tuple(items))
