@@ -24,6 +24,9 @@ from ..widgets import button, clear_layout, label, page_header
 PANEL_LIGHT = "#f3eee6"
 """Toolbar background; light, so the toolbar icons are drawn dark."""
 
+SCREEN_DPI = 90
+"""Figure resolution in the window (the Qt canvas multiplies it on high-density screens)."""
+
 KINDS = ("daily", "monthly", "products", "weekday")
 """Chart types offered by the selector, in order."""
 
@@ -110,13 +113,21 @@ class InteractiveChart(QWidget):
         from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 
         figure.set_layout_engine("constrained")
+        # PNG files keep 120 dpi; on screen a lower base dpi keeps text proportionate. The Qt
+        # canvas rescales from the figure's original dpi on every resize, so that is the
+        # value to lower (Matplotlib has no public setter for it).
+        figure._original_dpi = SCREEN_DPI
+        figure.set_dpi(SCREEN_DPI)
+        legend = figure.axes[0].get_legend()
+        if legend is not None:
+            legend.set_loc("best")  # move away from the data in narrow windows
         palette = self.palette()  # light palette: Matplotlib then draws dark toolbar icons
         palette.setColor(QPalette.ColorRole.Window, QColor(PANEL_LIGHT))
         palette.setColor(QPalette.ColorRole.Button, QColor(PANEL_LIGHT))
         self.setPalette(palette)
         self.canvas = FigureCanvasQTAgg(figure)
         self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.canvas.setMinimumHeight(300)
+        self.canvas.setMinimumHeight(260)
 
         class Toolbar(NavigationToolbar2QT):
             toolitems = [

@@ -79,6 +79,7 @@ QTableWidget {{
     gridline-color: #f0ebe3; alternate-background-color: #fcfaf6;
     selection-background-color: #fde3d6; selection-color: {INK};
 }}
+QHeaderView {{ background: #f3eee6; border: none; }}
 QHeaderView::section {{
     background: #f3eee6; color: {INK}; border: none; border-bottom: 1px solid {LINE};
     padding: 6px 8px; font-weight: 600;

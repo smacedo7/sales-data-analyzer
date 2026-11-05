@@ -6,6 +6,7 @@ user confirms that the records are complete (default No).
 
 from datetime import timedelta
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
@@ -69,6 +70,8 @@ class ForecastPage(Page):
         for box in (self.horizon_box, self.test_days_box, self.offset_edit):
             box.setMaximumWidth(140)
         form = QFormLayout()
+        form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)  # macOS would right-align the form
         form.addRow(t("forecast.horizon"), self.horizon_box)
         form.addRow(t("forecast.test_days"), self.test_days_box)
         form.addRow(self.offset_label, self.offset_edit)

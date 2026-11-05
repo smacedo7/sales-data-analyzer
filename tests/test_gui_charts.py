@@ -197,6 +197,14 @@ class InteractionTests(ChartsTestCase):
         page.chart.toolbar.home()
         self.assertEqual(axes.get_xlim(), before)
 
+    def test_screen_charts_use_a_lower_dpi_than_png_files(self) -> None:
+        from sales_data_analyzer.gui.pages.charts import SCREEN_DPI
+
+        page = self.page_for(daily_session(21))
+        ratio = page.chart.canvas.device_pixel_ratio
+        self.assertEqual(page.chart.figure.dpi, SCREEN_DPI * ratio)
+        self.assertEqual(page.chart.axes.get_legend()._loc, 0)  # "best": avoids the data
+
     def test_canvas_follows_the_window_size(self) -> None:
         page = self.page_for(daily_session(21))
         self.win.resize(1500, 900)

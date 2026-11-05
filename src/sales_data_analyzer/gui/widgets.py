@@ -159,7 +159,7 @@ class FitTable(QTableWidget):
         width = sum(self.columnWidth(c) for c in range(self.columnCount())) + frame
         height = self.horizontalHeader().sizeHint().height() + frame
         height += sum(self.rowHeight(r) for r in range(self.rowCount()))
-        return QSize(width + 2, height + 2)
+        return QSize(width + 4, height + 2)
 
     def sizeHint(self) -> QSize:
         """Return the content size."""
@@ -172,11 +172,9 @@ class FitTable(QTableWidget):
         return super().event(event)
 
     def minimumSizeHint(self) -> QSize:
-        """Allow shrinking horizontally (with a scroll bar), never vertically."""
+        """Allow shrinking horizontally, never vertically (macOS overlays the scroll bar)."""
         size = self._content_size()
-        return QSize(
-            min(size.width(), 240), size.height() + self.horizontalScrollBar().sizeHint().height()
-        )
+        return QSize(min(size.width(), 240), size.height())
 
 
 def fill(
