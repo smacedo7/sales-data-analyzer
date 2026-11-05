@@ -4,7 +4,9 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+import atexit  # noqa: E402
 from collections import deque  # noqa: E402
+import gc  # noqa: E402
 from pathlib import Path  # noqa: E402
 import unittest  # noqa: E402
 
@@ -14,8 +16,29 @@ from sales_data_analyzer.application import SalesSession  # noqa: E402
 
 
 def application() -> QApplication:
-    """Return the shared offscreen application, creating it once."""
-    return QApplication.instance() or QApplication(["tests"])
+    """Return the shared offscreen application, creating it once.
+
+    The application is shut down explicitly when the test process exits, after
+    every window and canvas is deleted, so Python's own finalization never
+    destroys Qt objects in an arbitrary order (that crashed the process after
+    "OK" on macOS and Windows CI).
+    """
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(["tests"])
+        atexit.register(_shut_down, app)
+    return app
+
+
+def _shut_down(app: QApplication) -> None:
+    """Delete every remaining widget, then shut the application down."""
+    for widget in app.topLevelWidgets():
+        widget.close()
+        widget.deleteLater()
+    flush_deleted()
+    gc.collect()
+    flush_deleted()
+    app.shutdown()
 
 
 def flush_deleted() -> None:
