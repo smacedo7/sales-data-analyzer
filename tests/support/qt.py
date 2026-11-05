@@ -94,3 +94,30 @@ class WindowTestCase(unittest.TestCase):
         """Fail when a queued answer was never used."""
         pending = {key: list(value) for key, value in self.prompter.answers.items() if value}
         self.assertEqual(pending, {})
+
+
+class StoredWindowTestCase(WindowTestCase):
+    """A window over a session loaded from a temporary database file."""
+
+    def setUp(self) -> None:
+        from support.databases import temporary_database
+
+        context = temporary_database()
+        self.path = context.__enter__()
+        self.addCleanup(context.__exit__, None, None, None)
+
+    def open_window(self, pages=None):
+        """Open the database like one program run and return the window."""
+        from sales_data_analyzer.persistence import SQLiteSalesRepository
+
+        repository = SQLiteSalesRepository.open(self.path)
+        self.addCleanup(repository.close)
+        return self.window(SalesSession.open(repository), pages=pages)
+
+    def reopen(self) -> SalesSession:
+        """Return the stored data as a new run would load it."""
+        from sales_data_analyzer.persistence import SQLiteSalesRepository
+
+        repository = SQLiteSalesRepository.open(self.path)
+        self.addCleanup(repository.close)
+        return SalesSession.open(repository)

@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 from unittest import mock
 
-from support.qt import WindowTestCase, application
+from support.qt import StoredWindowTestCase, application
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
@@ -20,27 +20,6 @@ from sales_data_analyzer.gui.forms import CompanyDialog, CompanyValues
 from sales_data_analyzer.persistence import SQLiteSalesRepository
 
 from support.databases import row_counts, temporary_database
-
-
-class StoredWindowTestCase(WindowTestCase):
-    """A window over a session loaded from a temporary database file."""
-
-    def setUp(self) -> None:
-        context = temporary_database()
-        self.path = context.__enter__()
-        self.addCleanup(context.__exit__, None, None, None)
-
-    def open_window(self):
-        """Open the database like one program run and return the window."""
-        repository = SQLiteSalesRepository.open(self.path)
-        self.addCleanup(repository.close)
-        return self.window(SalesSession.open(repository))
-
-    def reopen(self) -> SalesSession:
-        """Return the stored data as a new run would load it."""
-        repository = SQLiteSalesRepository.open(self.path)
-        self.addCleanup(repository.close)
-        return SalesSession.open(repository)
 
 
 class OpenAndListTests(StoredWindowTestCase):
