@@ -5,6 +5,7 @@ terminal menu (level 2), persistence (level 3) and GUI (level 4) can share it.
 Storage is reached only through the SalesRepository interface.
 """
 
+from .charts import ChartData, ProductRevenue
 from .errors import (
     ApplicationError,
     CatalogConflictError,
@@ -33,6 +34,7 @@ from .workspace import CompanyWorkspace, ImportSummary, ItemInput
 __all__ = [
     "ApplicationError",
     "CatalogConflictError",
+    "ChartData",
     "CompanyNotFoundError",
     "CompanyWorkspace",
     "ConcurrentChangeError",
@@ -47,6 +49,7 @@ __all__ = [
     "NoCompanySelectedError",
     "NoSalesInSelectionError",
     "PersistenceError",
+    "ProductRevenue",
     "ProductInUseError",
     "ProductNotFoundError",
     "SaleNotFoundError",

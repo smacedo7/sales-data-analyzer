@@ -27,6 +27,7 @@ from sales_data_analyzer.forecasting import (
     daily_revenue,
 )
 
+from .charts import UNKNOWN_PRODUCT_NAME, ChartData, ProductRevenue
 from .errors import (
     CompanyNotFoundError,
     DuplicateCompanyError,
@@ -358,4 +359,55 @@ class SalesSession:
         }
         return compare_methods(
             history, horizon=horizon, method=method, zero_filled_days=len(history) - len(sale_days)
+        )
+
+    # -- charts ---------------------------------------------------------------------
+
+    def top_products(self, limit: int = 10) -> tuple[ProductRevenue, ...]:
+        """Return the best-selling products of the selection by revenue, at most limit.
+
+        Order follows ProductAnalysis's revenue ranking (ties by ascending ID). A
+        product no longer in the catalog is named '?'. Raise ValueError for a limit
+        below 1 and NoCompanySelectedError without a company.
+        """
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("limit must be an integer")
+        if limit < 1:
+            raise ValueError("limit must be at least 1")
+        result = self.run_product_analysis()
+        names = {product.id: product.name for product in self.require_current().products}
+        revenue = {row.product_id: row.revenue for row in result.products}
+        return tuple(
+            ProductRevenue(key, names.get(key, UNKNOWN_PRODUCT_NAME), revenue[key])
+            for key in result.revenue_ranking[:limit]
+        )
+
+    def chart_data(self) -> ChartData:
+        """Return the values of the level 3 charts for the selection.
+
+        The daily chart lists days with sales; the estimate line is the forecast
+        comparison's chosen method with default options. A comparison refusal
+        (short history, missing days) is kept in `forecast_refusal` instead of being
+        raised. Raise NoSalesInSelectionError for an empty selection.
+        """
+        workspace = self.require_current()
+        self._require_selected_sales()
+        forecast: tuple[tuple[date, float], ...] = ()
+        forecast_title = None
+        refusal = None
+        try:
+            comparison = self.compare_forecasts()
+        except ValueError as error:
+            refusal = error.with_traceback(None)  # a value, not a live stack
+        else:
+            forecast = tuple((p.day, p.revenue) for p in comparison.future)
+            forecast_title = comparison.chosen_title
+        return ChartData(
+            title=f"{workspace.company.name} - {self._selection.describe()}",
+            daily=tuple((r.start, r.revenue) for r in self.sales_over_time("day").rows),
+            monthly=tuple((r.label, r.revenue) for r in self.sales_over_time("month").rows),
+            top_products=self.top_products(),
+            forecast=forecast,
+            forecast_title=forecast_title,
+            forecast_refusal=refusal,
         )
