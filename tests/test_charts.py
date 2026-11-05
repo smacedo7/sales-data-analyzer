@@ -17,8 +17,11 @@ from sales_data_analyzer.charts.images import (
     PRODUCTS_FILE,
     ChartInputs,
     ChartWriteError,
+    build_figure,
+    has_data,
     save_charts,
 )
+from sales_data_analyzer.application import ChartData, ProductRevenue
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 INPUTS = ChartInputs(
@@ -57,6 +60,45 @@ class BarLineTests(unittest.TestCase):
             bar_lines([("x", Decimal(-1))])
         with self.assertRaises(ValueError):
             bar_lines([("x", Decimal(1))], width=0)
+
+
+class BuildFigureTests(unittest.TestCase):
+    def test_each_kind_builds_a_titled_figure_without_an_agg_canvas(self) -> None:
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+        titles = {"daily": "Daily revenue", "monthly": "Monthly revenue", "products": "Top 2"}
+        for kind, title in titles.items():
+            with self.subTest(kind=kind):
+                figure = build_figure(kind, INPUTS)
+                self.assertNotIsInstance(figure.canvas, FigureCanvasAgg)
+                self.assertTrue(figure.axes[0].get_title(loc="left").startswith(title))
+
+    def test_daily_chart_draws_the_estimate_line_only_when_present(self) -> None:
+        self.assertEqual(len(build_figure("daily", INPUTS).axes[0].lines), 2)
+        plain = ChartInputs(INPUTS.title, INPUTS.daily, INPUTS.monthly, INPUTS.top_products)
+        self.assertEqual(len(build_figure("daily", plain).axes[0].lines), 1)
+
+    def test_unknown_kind_and_empty_chart_are_refused(self) -> None:
+        empty = ChartInputs("t", (), (), ())
+        self.assertFalse(has_data("monthly", empty))
+        with self.assertRaises(ValueError):
+            build_figure("pie", INPUTS)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            build_figure("products", empty)
+
+    def test_from_data_labels_products_and_keeps_exact_values(self) -> None:
+        data = ChartData(
+            title="Acme - all data",
+            daily=INPUTS.daily,
+            monthly=INPUTS.monthly,
+            top_products=(ProductRevenue("001", "Pen", Decimal("10.005")),),
+            forecast=INPUTS.forecast,
+            forecast_title="Last value",
+        )
+        inputs = ChartInputs.from_data(data)
+        self.assertEqual(inputs.top_products, (("001 Pen", Decimal("10.005")),))
+        self.assertEqual((inputs.daily, inputs.forecast), (INPUTS.daily, INPUTS.forecast))
+        self.assertEqual(inputs.forecast_title, "Last value")
 
 
 class SaveChartsTests(unittest.TestCase):

@@ -225,3 +225,39 @@ class ForecastFormattingTests(unittest.TestCase):
         self.assertTrue(is_missing_days_error(missing))
         self.assertFalse(is_missing_days_error(ValueError("other")))
         self.assertFalse(is_missing_days_error(TypeError(str(missing))))
+
+
+class SharedRefusalWordingTests(unittest.TestCase):
+    """Refusal wording shared by the terminal menu and the desktop interface."""
+
+    def test_import_diagnostics_and_refusals(self) -> None:
+        from sales_data_analyzer.application import CatalogConflictError, DuplicateSaleError
+        from sales_data_analyzer.cli.formatting import (
+            describe_import_error,
+            describe_import_refusal,
+            describe_product_in_use,
+        )
+        from sales_data_analyzer.importing import ImportValidationError
+
+        self.assertEqual(
+            describe_import_error(ImportValidationError(3, "quantity", "must be positive")),
+            "Import refused at line 3, field quantity: must be positive.",
+        )
+        self.assertEqual(
+            describe_import_error(ImportValidationError(0, "file", "is empty")),
+            "Import refused: is empty.",
+        )
+        self.assertIn(
+            "2 sale ID(s) already exist in this company: S1, S2.",
+            describe_import_refusal(DuplicateSaleError(("S1", "S2"))),
+        )
+        self.assertIn(
+            "1 product ID(s) have a different name or category in the catalog: P1.",
+            describe_import_refusal(CatalogConflictError(("P1",))),
+        )
+        with self.assertRaises(TypeError):
+            describe_import_refusal(ValueError("x"))  # type: ignore[arg-type]
+        self.assertEqual(
+            describe_product_in_use(1),
+            "Not done: this product appears in 1 sale and cannot be deleted.",
+        )

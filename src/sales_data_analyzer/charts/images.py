@@ -12,6 +12,12 @@ from decimal import Decimal
 import os
 from pathlib import Path
 import tempfile
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
+
+    from sales_data_analyzer.application import ChartData
 
 # Reference palette (validated): categorical slots 1 and 2 on the light surface.
 _SURFACE = "#fcfcfb"
@@ -41,14 +47,49 @@ class ChartInputs:
     forecast: tuple[tuple[date, float], ...] = ()
     forecast_title: str | None = None
 
+    @classmethod
+    def from_data(cls, data: "ChartData") -> "ChartInputs":
+        """Return the inputs for the application's chart values (labels as 'ID name')."""
+        return cls(
+            title=data.title,
+            daily=data.daily,
+            monthly=data.monthly,
+            top_products=tuple((row.label, row.revenue) for row in data.top_products),
+            forecast=data.forecast,
+            forecast_title=data.forecast_title,
+        )
+
+
+ChartKind = Literal["daily", "monthly", "products"]
+"""The three level 3 charts, in the order they are drawn and saved."""
+
+
+def has_data(kind: ChartKind, inputs: ChartInputs) -> bool:
+    """Return True when the chart of this kind has values to draw."""
+    return bool({"daily": inputs.daily, "monthly": inputs.monthly,
+                 "products": inputs.top_products}[kind])  # fmt: skip
+
+
+def build_figure(kind: ChartKind, inputs: ChartInputs) -> "Figure":
+    """Return the styled Matplotlib figure of one chart, with no canvas attached.
+
+    The same figure is saved as PNG by save_charts and embedded by the desktop
+    interface (which attaches its own Qt canvas). Raise ValueError for an unknown
+    kind or a chart without data.
+    """
+    builders = {"daily": _daily_chart, "monthly": _monthly_chart, "products": _products_chart}
+    if kind not in builders:
+        raise ValueError("unknown chart kind")
+    if not has_data(kind, inputs):
+        raise ValueError("this chart has no data")
+    return builders[kind](inputs)
+
 
 def _figure(width: float = 8.0, height: float = 4.5):  # -> (Figure, Axes)
-    """Return a figure with an Agg canvas and one styled axes."""
-    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    """Return a canvas-less figure with one styled axes."""
     from matplotlib.figure import Figure
 
     figure = Figure(figsize=(width, height), dpi=120, facecolor=_SURFACE)
-    FigureCanvasAgg(figure)
     axes = figure.add_subplot()
     axes.set_facecolor(_SURFACE)
     for side in ("top", "right"):
@@ -160,7 +201,10 @@ def save_charts(
 
 
 def _render(figure, folder: Path) -> str:
-    """Save figure as PNG into a new temporary file in folder and return its path."""
+    """Save figure as PNG (Agg canvas) into a new temporary file in folder; return its path."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+    FigureCanvasAgg(figure)
     handle, temporary = tempfile.mkstemp(prefix=".chart-", suffix=".png", dir=folder)
     try:
         with os.fdopen(handle, "wb") as stream:

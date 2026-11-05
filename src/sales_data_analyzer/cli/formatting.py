@@ -5,6 +5,8 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sales_data_analyzer.analysis import AnalysisResult
 from sales_data_analyzer.application.errors import (
+    CatalogConflictError,
+    DuplicateSaleError,
     InsufficientHistoryError,
     NoSalesInSelectionError,
 )
@@ -20,6 +22,7 @@ from sales_data_analyzer.exploration import (
     WeekdayProfile,
 )
 from sales_data_analyzer.forecasting import ComparisonResult, ForecastResult
+from sales_data_analyzer.importing import ImportValidationError
 
 _CENT = Decimal("0.01")
 _TENTH = Decimal("0.1")
@@ -62,6 +65,34 @@ def format_import_summary(summary: ImportSummary) -> str:
         f"{plural(summary.items_added, 'item')}. "
         f"Products: {summary.new_products} new, {summary.reused_products} reused."
     )
+
+
+def describe_import_error(error: ImportValidationError) -> str:
+    """Return the import diagnostic without raw values; line 0 means the file itself."""
+    if error.line == 0:
+        return f"Import refused: {error.reason}."
+    return f"Import refused at line {error.line}, field {error.field}: {error.reason}."
+
+
+def describe_import_refusal(error: DuplicateSaleError | CatalogConflictError) -> str:
+    """Explain an import refused by the company's data, naming up to five IDs."""
+    if isinstance(error, DuplicateSaleError):
+        return (
+            f"Import refused: {len(error.sale_ids)} sale ID(s) already exist in this "
+            f"company: {format_id_list(error.sale_ids)}. Nothing was imported."
+        )
+    if isinstance(error, CatalogConflictError):
+        return (
+            f"Import refused: {len(error.product_ids)} product ID(s) have a different "
+            f"name or category in the catalog: {format_id_list(error.product_ids)}. "
+            "Nothing was imported."
+        )
+    raise TypeError("error must be a DuplicateSaleError or a CatalogConflictError")
+
+
+def describe_product_in_use(sale_count: int) -> str:
+    """Explain why a sold product cannot be deleted."""
+    return f"Not done: this product appears in {plural(sale_count, 'sale')} and cannot be deleted."
 
 
 def plural(count: int, word: str) -> str:

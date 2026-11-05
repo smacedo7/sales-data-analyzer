@@ -6,7 +6,6 @@ drive the menu in tests exactly as a person would at the keyboard.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -28,6 +27,9 @@ from sales_data_analyzer.exploration import WEEKDAY_NAMES
 from sales_data_analyzer.importing import ImportValidationError
 
 from .formatting import (
+    describe_import_error,
+    describe_import_refusal,
+    describe_product_in_use,
     format_categories,
     format_comparison,
     format_comparison_estimates,
@@ -37,7 +39,6 @@ from .formatting import (
     explain_forecast_error,
     format_financial,
     format_forecast,
-    format_id_list,
     format_catalog,
     format_import_summary,
     format_money,
@@ -48,23 +49,27 @@ from .formatting import (
     plural,
 )
 from .parsing import (
+    DEFAULT_HORIZON,
+    DEFAULT_TEST_DAYS,
+    MAX_HORIZON,
     InputError,
+    parse_folder,
+    parse_horizon,
+    parse_optional_offset,
+    parse_optional_text,
+    parse_test_days,
     parse_amount,
     parse_date,
     parse_datetime,
     parse_path,
     parse_positive_int,
     parse_text,
-    parse_utc_offset,
     parse_yes_no,
 )
 
 DATA_NOTICE = "Data is kept in memory only and is lost when you exit."
 SAVED_NOTICE = "Data is saved in {location}."
 NEEDS_COMPANY = "Not done: create or select a company first."
-MAX_HORIZON = 365
-DEFAULT_HORIZON = 7
-DEFAULT_TEST_DAYS = 2
 
 
 @dataclass(frozen=True)
@@ -215,7 +220,7 @@ class TerminalMenu:
         except EOFError, KeyboardInterrupt:
             raise
         except ImportValidationError as error:
-            self._say(_describe_import_error(error))
+            self._say(describe_import_error(error))
         except (PersistenceError, StorageLimitError) as error:
             self._say(f"Not done: {error}. Nothing was changed.")
         except (ApplicationError, ValueError, TypeError) as error:
@@ -316,18 +321,8 @@ class TerminalMenu:
         path = self._ask("CSV file path: ", parse_path)
         try:
             summary = workspace.import_sales(path)
-        except DuplicateSaleError as error:
-            self._say(
-                f"Import refused: {len(error.sale_ids)} sale ID(s) already exist in this "
-                f"company: {format_id_list(error.sale_ids)}. Nothing was imported."
-            )
-            return
-        except CatalogConflictError as error:
-            self._say(
-                f"Import refused: {len(error.product_ids)} product ID(s) have a different "
-                f"name or category in the catalog: {format_id_list(error.product_ids)}. "
-                "Nothing was imported."
-            )
+        except (DuplicateSaleError, CatalogConflictError) as error:
+            self._say(describe_import_refusal(error))
             return
         self._say(format_import_summary(summary))
 
@@ -377,15 +372,17 @@ class TerminalMenu:
             self._say(explain_forecast_error(NoSalesInSelectionError()))
             return
         horizon = self._ask(
-            f"Days to forecast (1-{MAX_HORIZON}, blank = {DEFAULT_HORIZON}): ", _parse_horizon
+            f"Days to forecast (1-{MAX_HORIZON}, blank = {DEFAULT_HORIZON}): ", parse_horizon
         )
         test_days = self._ask(
-            f"Test days (at least 2, blank = {DEFAULT_TEST_DAYS}): ", _parse_test_days
+            f"Test days (at least 2, blank = {DEFAULT_TEST_DAYS}): ", parse_test_days
         )
         offset = None
         if self.session.data_is_aware():
             self._say("These sales have time zone offsets; days are grouped by a UTC offset.")
-            offset = self._ask("UTC offset (+HH:MM or -HH:MM, blank = +00:00): ", _parse_offset)
+            offset = self._ask(
+                "UTC offset (+HH:MM or -HH:MM, blank = +00:00): ", parse_optional_offset
+            )
         options = {"horizon": horizon, "test_days": test_days, "utc_offset": offset}
         try:
             result = self.session.run_forecast(**options)
@@ -414,8 +411,8 @@ class TerminalMenu:
     def _edit_company(self) -> None:
         """Ask for a new name and sector (blank keeps each) and apply both together."""
         self.session.require_current()
-        name = self._ask("New name (blank = keep): ", _parse_optional_text)
-        sector = self._ask("New sector (blank = keep): ", _parse_optional_text)
+        name = self._ask("New name (blank = keep): ", parse_optional_text)
+        sector = self._ask("New sector (blank = keep): ", parse_optional_text)
         company = self.session.update_company(name, sector).company
         self._say(f"Company updated: {company.name} ({company.sector})")
 
@@ -426,8 +423,8 @@ class TerminalMenu:
         if product is None:
             self._say("Product not found.")
             return
-        name = self._ask("New name (blank = keep): ", _parse_optional_text)
-        category = self._ask("New category (blank = keep): ", _parse_optional_text)
+        name = self._ask("New name (blank = keep): ", parse_optional_text)
+        category = self._ask("New category (blank = keep): ", parse_optional_text)
         product = workspace.update_product(product.id, name, category)
         self._say(f"Product updated: {product.id} {product.name} ({product.category})")
 
@@ -440,7 +437,7 @@ class TerminalMenu:
             return
         in_use = workspace.sales_with_product(product.id)
         if in_use:
-            self._say(_in_use_message(in_use))
+            self._say(describe_product_in_use(in_use))
             return
         if not self._ask(f"Delete product {product.id} {product.name}? [y/N] ", parse_yes_no):
             self._say("Nothing was deleted.")
@@ -448,7 +445,7 @@ class TerminalMenu:
         try:
             workspace.delete_product(product.id)
         except ProductInUseError as error:
-            self._say(_in_use_message(error.sale_count))
+            self._say(describe_product_in_use(error.sale_count))
             return
         self._say(f"Product deleted: {product.id}")
 
@@ -543,12 +540,14 @@ class TerminalMenu:
             self._say(explain_forecast_error(NoSalesInSelectionError()))
             return
         horizon = self._ask(
-            f"Days to forecast (1-{MAX_HORIZON}, blank = {DEFAULT_HORIZON}): ", _parse_horizon
+            f"Days to forecast (1-{MAX_HORIZON}, blank = {DEFAULT_HORIZON}): ", parse_horizon
         )
         offset = None
         if self.session.data_is_aware():
             self._say("These sales have time zone offsets; days are grouped by a UTC offset.")
-            offset = self._ask("UTC offset (+HH:MM or -HH:MM, blank = +00:00): ", _parse_offset)
+            offset = self._ask(
+                "UTC offset (+HH:MM or -HH:MM, blank = +00:00): ", parse_optional_offset
+            )
         options = {"horizon": horizon, "utc_offset": offset, "missing_days": "reject"}
         try:
             result = self.session.compare_forecasts(**options)
@@ -586,15 +585,6 @@ class TerminalMenu:
 
     # -- charts (level 3) -----------------------------------------------------------
 
-    def _top_products(self, limit: int = 10) -> list[tuple[str, Decimal]]:
-        """Return (ID and name, revenue) of the best-selling products in the selection."""
-        result = self.session.run_product_analysis()
-        names = {p.id: p.name for p in self.session.require_current().products}
-        rows = {row.product_id: row.revenue for row in result.products}
-        return [
-            (f"{key} {names.get(key, '?')}", rows[key]) for key in result.revenue_ranking[:limit]
-        ]
-
     def _text_charts(self) -> None:
         """Print one bar chart of the selection in the terminal."""
         self.session.require_current()
@@ -617,7 +607,7 @@ class TerminalMenu:
             ]
         else:
             title = f"Top products by revenue - {scope}"
-            rows = self._top_products()
+            rows = [(row.label, row.revenue) for row in self.session.top_products()]
         self._say(title)
         for line in bar_lines(rows, value_text=format_money):
             self._say(line)
@@ -626,28 +616,15 @@ class TerminalMenu:
         """Write PNG charts of the selection to a folder, asking before replacing files."""
         from sales_data_analyzer.charts.images import ChartInputs, ChartWriteError, save_charts
 
-        workspace = self.session.require_current()
+        self.session.require_current()
         if not self.session.selected_sales().sales:
             self._say("No sales in the current selection.")
             return
-        folder = self._ask("Folder (blank = reports): ", _parse_folder)
-        forecast: tuple = ()
-        forecast_title = None
-        try:
-            comparison = self.session.compare_forecasts()
-        except ValueError as error:
-            self._say(f"Forecast not drawn: {explain_forecast_error(error)}")
-        else:
-            forecast = tuple((p.day, p.revenue) for p in comparison.future)
-            forecast_title = comparison.chosen_title
-        inputs = ChartInputs(
-            title=f"{workspace.company.name} - {self.session.selection.describe()}",
-            daily=tuple((r.start, r.revenue) for r in self.session.sales_over_time("day").rows),
-            monthly=tuple((r.label, r.revenue) for r in self.session.sales_over_time("month").rows),
-            top_products=tuple(self._top_products()),
-            forecast=forecast,
-            forecast_title=forecast_title,
-        )
+        folder = self._ask("Folder (blank = reports): ", parse_folder)
+        data = self.session.chart_data()
+        if data.forecast_refusal is not None:
+            self._say(f"Forecast not drawn: {explain_forecast_error(data.forecast_refusal)}")
+        inputs = ChartInputs.from_data(data)
 
         def replace(path: Path) -> bool:
             return self._ask(f"Replace {path.name}? [y/N] ", parse_yes_no)
@@ -675,48 +652,3 @@ class TerminalMenu:
                 return parser(self._input(prompt))
             except InputError as error:
                 self._say(f"Invalid value: {error}.")
-
-
-def _parse_optional_text(text: str) -> str | None:
-    """Return trimmed text, or None when blank (keep the current value)."""
-    value = text.strip()
-    return value or None
-
-
-def _in_use_message(sale_count: int) -> str:
-    """Explain why a sold product cannot be deleted."""
-    return f"Not done: this product appears in {plural(sale_count, 'sale')} and cannot be deleted."
-
-
-def _parse_folder(text: str) -> Path:
-    """Return the chart folder; blank means ./reports."""
-    return Path("reports") if not text.strip() else parse_path(text)
-
-
-def _parse_horizon(text: str) -> int:
-    """Return the forecast horizon in days; blank means the default."""
-    if not text.strip():
-        return DEFAULT_HORIZON
-    return parse_positive_int(text, maximum=MAX_HORIZON)
-
-
-def _parse_test_days(text: str) -> int:
-    """Return the number of test days (at least 2); blank means the default."""
-    if not text.strip():
-        return DEFAULT_TEST_DAYS
-    value = parse_positive_int(text)
-    if value < 2:
-        raise InputError("expected at least 2 test days")
-    return value
-
-
-def _parse_offset(text: str) -> timedelta:
-    """Return a UTC offset; blank means +00:00."""
-    return timedelta(0) if not text.strip() else parse_utc_offset(text)
-
-
-def _describe_import_error(error: ImportValidationError) -> str:
-    """Return the import diagnostic without raw values; line 0 means the file itself."""
-    if error.line == 0:
-        return f"Import refused: {error.reason}."
-    return f"Import refused at line {error.line}, field {error.field}: {error.reason}."
