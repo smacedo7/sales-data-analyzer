@@ -13,14 +13,14 @@ from datetime import date
 from math import isfinite
 from typing import Literal
 
-from . import DailyRevenue
+from . import DailyRevenue, ForecastRefusal
 
 
-class ConstantRevenueError(ValueError):
+class ConstantRevenueError(ForecastRefusal):
     """Raised by regression methods when training revenue does not vary."""
 
     def __init__(self) -> None:
-        super().__init__("training revenue must vary to learn a trend")
+        super().__init__("training revenue must vary to learn a trend", "constant_revenue")
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ class ForecastMethod(ABC):
             raise ValueError(f"{self.title} needs {self.min_training_days} training days")
         values = [float(row.revenue) for row in training]
         if not all(isfinite(value) for value in values):
-            raise ValueError("revenue must be finite at the ML boundary")
+            raise ForecastRefusal("revenue must be finite at the ML boundary", "not_finite")
         return values
 
     def __repr__(self) -> str:
@@ -157,7 +157,7 @@ class _Regression(ForecastMethod):
             float(v) for v in model.predict([self._features(origin, d) for d in days])
         )
         if not all(isfinite(value) for value in estimates):
-            raise ValueError("predictions must be finite")
+            raise ForecastRefusal("predictions must be finite", "not_finite")
         return estimates
 
 

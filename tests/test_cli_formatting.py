@@ -219,12 +219,14 @@ class ForecastFormattingTests(unittest.TestCase):
         self.assertEqual(explain_forecast_error(ValueError("something else")), "something else")
 
     def test_missing_days_detection(self) -> None:
-        missing = ValueError(
-            "history has missing days; explicitly select zero only for complete records"
-        )
-        self.assertTrue(is_missing_days_error(missing))
-        self.assertFalse(is_missing_days_error(ValueError("other")))
-        self.assertFalse(is_missing_days_error(TypeError(str(missing))))
+        from sales_data_analyzer.forecasting import ForecastRefusal
+
+        text = "history has missing days; explicitly select zero only for complete records"
+        self.assertTrue(is_missing_days_error(ForecastRefusal(text, "missing_days")))
+        self.assertFalse(is_missing_days_error(ForecastRefusal(text, "constant_revenue")))
+        # detection is by type and reason, never by the English message
+        self.assertFalse(is_missing_days_error(ValueError(text)))
+        self.assertFalse(is_missing_days_error(TypeError(text)))
 
 
 class SharedRefusalWordingTests(unittest.TestCase):

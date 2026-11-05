@@ -5,6 +5,8 @@ safe to log or display as-is. Adapters read the typed attributes when they
 need to show details to the user.
 """
 
+from typing import Literal
+
 
 class ApplicationError(ValueError):
     """Base class for rule violations detected by the application layer."""
@@ -81,9 +83,16 @@ class TimestampAwarenessError(ApplicationError):
 
 
 class InvalidPeriodError(ApplicationError):
-    """Raised when a period is reversed or outside the supported calendar."""
+    """Raised when a period is incomplete, reversed or outside the supported calendar.
 
-    def __init__(self, reason: str) -> None:
+    `kind` names the problem ("incomplete", "reversed" or "out_of_range") so
+    interfaces can word it without reading the English message.
+    """
+
+    def __init__(
+        self, reason: str, kind: Literal["incomplete", "reversed", "out_of_range"] = "reversed"
+    ) -> None:
+        self.kind = kind
         super().__init__(reason)
 
 

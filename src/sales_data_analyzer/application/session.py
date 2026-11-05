@@ -53,7 +53,7 @@ class Selection:
     def __post_init__(self) -> None:
         """Require both dates or neither, in order, before the last calendar day."""
         if (self.start is None) != (self.end is None):
-            raise InvalidPeriodError("a period needs both a start and an end date")
+            raise InvalidPeriodError("a period needs both a start and an end date", "incomplete")
         if self.start is None or self.end is None:
             return
         if not isinstance(self.start, date) or not isinstance(self.end, date):
@@ -61,9 +61,9 @@ class Selection:
         if isinstance(self.start, datetime) or isinstance(self.end, datetime):
             raise TypeError("start and end must be dates without time")
         if self.start > self.end:
-            raise InvalidPeriodError("the end date is before the start date")
+            raise InvalidPeriodError("the end date is before the start date", "reversed")
         if self.end >= date.max:
-            raise InvalidPeriodError("the end date must be on or before 9999-12-30")
+            raise InvalidPeriodError("the end date must be on or before 9999-12-30", "out_of_range")
 
     @property
     def is_all(self) -> bool:

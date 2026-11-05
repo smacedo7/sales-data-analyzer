@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from math import isfinite, sqrt
 from typing import Literal
 
-from . import DailyRevenue, Prediction
+from . import DailyRevenue, ForecastRefusal, Prediction
 from .methods import DEFAULT_METHODS, ConstantRevenueError, FitSummary, ForecastMethod
 
 MIN_HISTORY_DAYS = 12
@@ -137,13 +137,17 @@ def compare_methods(
         raise ValueError("horizon must be from 1 to 365 days")
     n = len(history)
     if n < MIN_HISTORY_DAYS:
-        raise ValueError(f"the comparison needs at least {MIN_HISTORY_DAYS} days of history")
+        raise ForecastRefusal(
+            f"the comparison needs at least {MIN_HISTORY_DAYS} days of history", "short_history"
+        )
     if any(b.day - a.day != timedelta(days=1) for a, b in zip(history, history[1:], strict=False)):
-        raise ValueError("history must have one row per consecutive day")
+        raise ForecastRefusal("history must have one row per consecutive day", "missing_days")
     try:
         future_days = tuple(history[-1].day + timedelta(days=i) for i in range(1, horizon + 1))
     except OverflowError:
-        raise ValueError("history or horizon exceeds numeric/calendar range") from None
+        raise ForecastRefusal(
+            "history or horizon exceeds numeric/calendar range", "calendar_range"
+        ) from None
 
     blocks = _block_count(n, methods, block_days, max_blocks)
     starts = [n - k * block_days for k in range(blocks, 0, -1)]
@@ -241,5 +245,5 @@ def _mae_rmse(differences: Sequence[float]) -> tuple[float, float]:
     mae = sum(abs(d) for d in differences) / len(differences)
     rmse = sqrt(sum(d * d for d in differences) / len(differences))
     if not isfinite(mae) or not isfinite(rmse):
-        raise ValueError("evaluation errors exceed finite floating-point range")
+        raise ForecastRefusal("evaluation errors exceed finite floating-point range", "not_finite")
     return mae, rmse

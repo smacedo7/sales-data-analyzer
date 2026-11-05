@@ -21,7 +21,7 @@ from sales_data_analyzer.exploration import (
     TemporalSummary,
     WeekdayProfile,
 )
-from sales_data_analyzer.forecasting import ComparisonResult, ForecastResult
+from sales_data_analyzer.forecasting import ComparisonResult, ForecastRefusal, ForecastResult
 from sales_data_analyzer.importing import ImportValidationError
 
 _CENT = Decimal("0.01")
@@ -409,7 +409,7 @@ def format_forecast(result: ForecastResult, scope: str) -> list[str]:
 
 def is_missing_days_error(error: Exception) -> bool:
     """Return True when the forecaster refused history with days without sales."""
-    return isinstance(error, ValueError) and str(error) == _MISSING_DAYS
+    return isinstance(error, ForecastRefusal) and error.reason == "missing_days"
 
 
 def explain_forecast_error(error: Exception) -> str:
