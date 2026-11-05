@@ -146,10 +146,22 @@ class InteractiveChart(QWidget):
     def nearest(self, x_pixels: float, y_pixels: float, radius: float = 24) -> HoverPoint | None:
         """Return the drawn point closest to a mouse position (pixels), within radius."""
         best, best_distance = None, radius
+        rows = [p.y for p in self.points]
+        bar_half_height = (
+            abs(self.axes.transData.transform((0, 0.3))[1] - self.axes.transData.transform((0, 0))[1])
+            if self.kind == "products" and rows else radius
+        )  # fmt: skip
+        (x_low, x_high), (y_low, y_high) = (
+            sorted(self.axes.get_xlim()),
+            sorted(self.axes.get_ylim()),
+        )
         for point in self.points:
+            if not (x_low <= point.x <= x_high and y_low <= point.y <= y_high):
+                continue  # zoomed or panned out of view
             px, py = self.axes.transData.transform((point.x, point.y))
             if self.kind == "products":  # horizontal bars: the row decides
                 distance = abs(py - y_pixels) if x_pixels <= px + radius else radius + 1
+                distance = distance if abs(py - y_pixels) <= bar_half_height else radius + 1
             elif self.kind in ("monthly", "weekday"):  # vertical bars: the column decides
                 distance = abs(px - x_pixels) if y_pixels <= py + radius else radius + 1
             else:

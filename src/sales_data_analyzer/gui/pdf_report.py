@@ -122,7 +122,8 @@ def report_html(content: ReportContent) -> str:
     """Return the report as HTML; chart images are referenced as `chart:<kind>`."""
     cards = "".join(
         f'<td class="card"><span class="label">{escape(c.label)}</span><br>'
-        f'<span class="value">{escape(c.value)}</span></td>' + ("</tr><tr>" if index == 2 else "")
+        f'<span class="value">{escape(c.value)}</span></td>'
+        + ("</tr><tr>" if index % 3 == 2 and index < len(content.cards) - 1 else "")
         for index, c in enumerate(content.cards)
     )
     charts = "".join(

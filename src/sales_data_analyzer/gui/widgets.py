@@ -168,7 +168,7 @@ class FitTable(QTableWidget):
     def event(self, event) -> bool:
         """Ask the layout for a new size once styling has changed the row heights."""
         if event.type() in (QEvent.Type.Polish, QEvent.Type.StyleChange, QEvent.Type.Show):
-            QTimer.singleShot(0, self.updateGeometry)
+            QTimer.singleShot(0, self, self.updateGeometry)  # skipped if deleted first
         return super().event(event)
 
     def minimumSizeHint(self) -> QSize:

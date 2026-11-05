@@ -72,14 +72,18 @@ def find_demo(session: SalesSession) -> int | None:
 def load_demo(
     session: SalesSession, last_day: date | None = None
 ) -> tuple[CompanyWorkspace, ImportSummary]:
-    """Create and select the demo company and import its sales in one transaction.
+    """Create (or reuse an empty) demo company, select it and import its sales atomically.
 
     `last_day` defaults to yesterday. Raise DuplicateCompanyError when the demo
-    company already exists (callers select it instead); storage errors propagate
-    and leave the new, empty company in place, exactly like a failed import.
+    company already has sales (callers select it instead). If a storage error
+    stops the import, the company stays empty and a later call fills it.
     """
     last_day = last_day or date.today() - timedelta(days=1)
-    workspace = session.create_company(DEMO_COMPANY, DEMO_SECTOR)
+    existing = find_demo(session)
+    if existing is not None and not session.workspaces[existing - 1].sales.sales:
+        workspace = session.select_company(existing)  # retry after a failed import
+    else:
+        workspace = session.create_company(DEMO_COMPANY, DEMO_SECTOR)
     with tempfile.TemporaryDirectory() as folder:
         path = Path(folder) / "demo_sales.csv"
         with path.open("w", encoding="utf-8", newline="") as stream:

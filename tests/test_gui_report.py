@@ -1,6 +1,7 @@
 """Desktop window: PDF report built from service results and written with Qt."""
 
 from datetime import date, datetime
+import os
 from pathlib import Path
 import re
 import tempfile
@@ -62,6 +63,12 @@ class ContentTests(unittest.TestCase):
         html = pdf_report.report_html(pdf_report.report_content(session, MOMENT))
         self.assertIn("A &lt;b&gt;&amp;&lt;/b&gt;", html)
 
+    def test_card_grid_has_two_rows_of_three(self) -> None:
+        html = pdf_report.report_html(pdf_report.report_content(daily_session(3), MOMENT))
+        cards = html[html.index("Indicadores financeiros") : html.index("Produtos de destaque")]
+        self.assertEqual(cards.count('class="card"'), 6)
+        self.assertEqual(cards.count("</tr><tr>"), 1)
+
     def test_suggested_file_name(self) -> None:
         self.assertEqual(
             pdf_report.suggested_name("Café Aurora (demo)", MOMENT),
@@ -93,6 +100,10 @@ class WriteTests(WindowTestCase):
         self.assertEqual(target.read_bytes()[:5], b"%PDF-")
         self.assertGreaterEqual(page_count(target), 2)
         self.assertEqual(self.prompter.notices, [f"Relatório salvo em {target}."])
+        if os.name == "posix":  # readable like any document, not private like a temp file
+            mask = os.umask(0)
+            os.umask(mask)
+            self.assertEqual(target.stat().st_mode & 0o777, 0o666 & ~mask)
         self.assertEqual(sorted(p.name for p in self.folder.iterdir()), ["report.pdf"])
 
     def test_cancel_and_unwritable_folder_leave_no_file(self) -> None:

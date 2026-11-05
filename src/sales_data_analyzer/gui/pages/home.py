@@ -71,7 +71,7 @@ class HomePage(Page):
     def load_demo(self) -> None:
         """Create the demo company (or select it when it already exists) and open it."""
         existing = demo.find_demo(self.session)
-        if existing is not None:
+        if existing is not None and self.session.workspaces[existing - 1].sales.sales:
             self.window_.select_company(existing)
             self.window_.notify(t("home.demo_exists"))
             return

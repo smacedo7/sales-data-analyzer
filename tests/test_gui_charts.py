@@ -145,6 +145,30 @@ class InteractionTests(ChartsTestCase):
         self.hover(chart, 5, -10)
         self.assertFalse(chart.annotation.get_visible())
 
+    def test_hover_ignores_points_zoomed_out_of_view_and_leaving_the_axes(self) -> None:
+        from matplotlib.backend_bases import MouseEvent
+        from matplotlib.dates import date2num
+
+        page = self.page_for(daily_session(21))
+        chart = page.chart
+        first_day, first_value = self.session.chart_data().daily[0]
+        x = date2num(first_day)
+        chart.axes.set_xlim(x + 5, x + 15)  # zoom to days 5..15
+        self.hover(chart, x, float(first_value))
+        self.assertFalse(chart.annotation.get_visible())
+        when, value = self.session.chart_data().daily[8]
+        self.hover(chart, date2num(when), float(value))
+        self.assertTrue(chart.annotation.get_visible())
+        outside = MouseEvent("motion_notify_event", chart.canvas, 1, 1)  # bottom-left corner
+        chart.canvas.callbacks.process("motion_notify_event", outside)
+        self.assertFalse(chart.annotation.get_visible())
+
+    def test_hover_between_bar_rows_shows_nothing(self) -> None:
+        page = self.page_for(daily_session(21))
+        page.choose("products")
+        self.hover(page.chart, 5, 0.5)  # halfway between the two bars
+        self.assertFalse(page.chart.annotation.get_visible())
+
     def test_hover_texts_use_the_exact_decimals(self) -> None:
         data = daily_session(3).chart_data()
         points = hover_points("monthly", data)

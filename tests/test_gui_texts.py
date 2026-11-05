@@ -81,6 +81,20 @@ class DemoTests(unittest.TestCase):
         with self.assertRaises(DuplicateCompanyError):
             demo.load_demo(session)
 
+    def test_empty_demo_company_left_by_a_failed_import_is_filled_on_retry(self) -> None:
+        from unittest import mock
+
+        from sales_data_analyzer.application import CompanyWorkspace, PersistenceError
+
+        session = SalesSession()
+        with mock.patch.object(CompanyWorkspace, "import_sales", side_effect=PersistenceError()):
+            with self.assertRaises(PersistenceError):
+                demo.load_demo(session, last_day=date(2026, 3, 31))
+        self.assertEqual(len(session.workspaces[0].sales.sales), 0)
+        workspace, summary = demo.load_demo(session, last_day=date(2026, 3, 31))
+        self.assertEqual(len(session.workspaces), 1)
+        self.assertEqual(summary.sales_added, len(workspace.sales.sales))
+
     def test_rows_are_deterministic(self) -> None:
         self.assertEqual(demo.demo_rows(date(2026, 3, 31)), demo.demo_rows(date(2026, 3, 31)))
 
