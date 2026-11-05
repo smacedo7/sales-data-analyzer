@@ -9,9 +9,11 @@ hover are the exact Decimals of ChartData, formatted for display.
 
 from dataclasses import dataclass, replace
 from decimal import Decimal
+from pathlib import Path
 
-from PySide6.QtGui import QColor, QPalette
-from PySide6.QtWidgets import QComboBox, QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QSizePolicy, QToolBar, QVBoxLayout, QWidget
 
 from sales_data_analyzer.application import ChartData
 
@@ -20,9 +22,6 @@ from ..main_window import MainWindow, Page
 from ..messages import describe_failure
 from ..texts import day, integer, method_title, money, t, template, weekday
 from ..widgets import button, clear_layout, label, page_header
-
-PANEL_LIGHT = "#f3eee6"
-"""Toolbar background; light, so the toolbar icons are drawn dark."""
 
 SCREEN_DPI = 90
 """Figure resolution in the window (the Qt canvas multiplies it on high-density screens)."""
@@ -49,8 +48,8 @@ class HoverPoint:
     text: str
 
 
-def chart_labels():  # -> ChartLabels
-    """Return the chart texts and axis number format of the active language."""
+def chart_labels(dpi: float = 120):  # -> ChartLabels
+    """Return the chart texts, axis number format and resolution for the active language."""
     from sales_data_analyzer.charts.images import ChartLabels
 
     return ChartLabels(
@@ -61,6 +60,7 @@ def chart_labels():  # -> ChartLabels
         revenue=t("charts.axis_revenue"),
         estimate=template("charts.legend_estimate"),
         axis_number=lambda value: integer(round(value)),
+        dpi=dpi,
     )
 
 
@@ -104,40 +104,91 @@ def hover_points(kind: str, data: ChartData) -> list[HoverPoint]:
     ]  # fmt: skip
 
 
+def _navigation_class():  # -> type
+    """Return the zoom/pan navigation class (Matplotlib is imported lazily)."""
+    from matplotlib.backend_bases import NavigationToolbar2
+
+    class Navigation(NavigationToolbar2):
+        """Matplotlib's backend-independent zoom, pan and view history for one Qt canvas.
+
+        Only public Matplotlib and Qt APIs are used: the zoom rectangle is drawn
+        with the Qt canvas's `drawRectangle`, and there is no Matplotlib Qt toolbar.
+        """
+
+        def draw_rubberband(self, event, x0, y0, x1, y1) -> None:
+            """Draw the zoom rectangle (display coordinates, origin at the bottom)."""
+            height = self.canvas.get_width_height(physical=True)[1]
+            rect = [int(v) for v in (x0, height - y0, x1 - x0, y0 - y1)]
+            self.canvas.drawRectangle(rect)
+
+        def remove_rubberband(self) -> None:
+            """Remove the zoom rectangle."""
+            self.canvas.drawRectangle(None)
+
+    return Navigation
+
+
+def chart_navigation(canvas):  # -> NavigationToolbar2
+    """Return the navigation (zoom, pan, view history) of a canvas."""
+    return _navigation_class()(canvas)
+
+
+TOOLBAR_ACTIONS = (
+    ("home", "home", False),
+    ("back", "back", False),
+    ("forward", "forward", False),
+    ("pan", "move", True),
+    ("zoom", "zoom_to_rect", True),
+)
+"""(navigation method, Matplotlib icon name, checkable) in toolbar order."""
+
+
+def navigation_toolbar(navigation, parent: QWidget) -> QToolBar:
+    """Return a Qt toolbar with translated tooltips driving navigation.
+
+    Icons are Matplotlib's own image files, found with the public
+    `matplotlib.get_data_path()`; pan and zoom show which mode is active.
+    """
+    import matplotlib
+
+    images = Path(matplotlib.get_data_path()) / "images"
+    toolbar = QToolBar(parent)
+    toolbar.setObjectName("chartToolbar")
+    toolbar.setIconSize(QSize(24, 24))
+    keys = {"home": "Home", "back": "Back", "forward": "Forward", "pan": "Pan", "zoom": "Zoom"}
+    modes = {"pan": "pan/zoom", "zoom": "zoom rect"}
+    actions = {}
+
+    def sync() -> None:
+        for name, mode in modes.items():
+            actions[name].setChecked(str(navigation.mode) == mode)
+
+    for method, icon, checkable in TOOLBAR_ACTIONS:
+        action = toolbar.addAction(QIcon(str(images / f"{icon}_large.png")), "")
+        action.setToolTip(t(TOOLBAR_KEYS[keys[method]]))
+        action.setCheckable(checkable)
+        action.triggered.connect(lambda _=False, m=method: (getattr(navigation, m)(), sync()))
+        actions[method] = action
+    return toolbar
+
+
 class InteractiveChart(QWidget):
     """A Matplotlib canvas with a translated zoom/pan toolbar and value tooltips."""
 
     def __init__(self, figure, points: list[HoverPoint], kind: str) -> None:
         """Embed figure; points are what the mouse can point at."""
         super().__init__()
-        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+        from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 
         figure.set_layout_engine("constrained")
-        # PNG files keep 120 dpi; on screen a lower base dpi keeps text proportionate. The Qt
-        # canvas rescales from the figure's original dpi on every resize, so that is the
-        # value to lower (Matplotlib has no public setter for it).
-        figure._original_dpi = SCREEN_DPI
-        figure.set_dpi(SCREEN_DPI)
         legend = figure.axes[0].get_legend()
         if legend is not None:
             legend.set_loc("best")  # move away from the data in narrow windows
-        palette = self.palette()  # light palette: Matplotlib then draws dark toolbar icons
-        palette.setColor(QPalette.ColorRole.Window, QColor(PANEL_LIGHT))
-        palette.setColor(QPalette.ColorRole.Button, QColor(PANEL_LIGHT))
-        self.setPalette(palette)
         self.canvas = FigureCanvasQTAgg(figure)
         self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.canvas.setMinimumHeight(260)
-
-        class Toolbar(NavigationToolbar2QT):
-            toolitems = [
-                (name, t(TOOLBAR_KEYS[name]), image, method)
-                for name, _, image, method in NavigationToolbar2QT.toolitems
-                if name in TOOLBAR_KEYS
-            ]
-
-        self.toolbar = Toolbar(self.canvas, self, coordinates=False)
-        self.toolbar.setObjectName("chartToolbar")
+        self.navigation = chart_navigation(self.canvas)
+        self.toolbar = navigation_toolbar(self.navigation, self)
         self.figure = figure
         self.axes = figure.axes[0]
         self.points = points
@@ -278,7 +329,7 @@ class ChartsPage(Page):
         if not has_data(kind, inputs):
             self.area.addWidget(label(t("charts.no_data"), "banner"))
             return
-        figure = build_figure(kind, inputs, chart_labels())
+        figure = build_figure(kind, inputs, chart_labels(SCREEN_DPI))
         if kind == "daily":
             from matplotlib.dates import DateFormatter
 

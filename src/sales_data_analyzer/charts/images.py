@@ -82,8 +82,8 @@ CHART_KINDS: tuple[ChartKind, ...] = ("daily", "monthly", "products", "weekday")
 class ChartLabels:
     """Visible chart texts and the axis number format (English defaults for PNG files).
 
-    The desktop window passes translated texts; `products` is formatted with
-    `{count}` and `estimate` with `{title}`.
+    The desktop window passes translated texts and its screen resolution;
+    `products` is formatted with `{count}` and `estimate` with `{title}`.
     """
 
     daily: str = "Daily revenue"
@@ -93,6 +93,8 @@ class ChartLabels:
     revenue: str = "Revenue"
     estimate: str = "Estimate ({title})"
     axis_number: Callable[[float], str] = lambda value: f"{value:,.0f}"
+    dpi: float = 120
+    """Figure resolution: 120 for PNG files; the desktop window uses a lower screen value."""
 
 
 def has_data(kind: ChartKind, inputs: ChartInputs) -> bool:
@@ -119,11 +121,11 @@ def build_figure(
     return builders[kind](inputs, labels or ChartLabels())
 
 
-def _figure(width: float = 8.0, height: float = 4.5):  # -> (Figure, Axes)
+def _figure(labels: ChartLabels, width: float = 8.0, height: float = 4.5):  # -> (Figure, Axes)
     """Return a canvas-less figure with one styled axes."""
     from matplotlib.figure import Figure
 
-    figure = Figure(figsize=(width, height), dpi=120, facecolor=_SURFACE)
+    figure = Figure(figsize=(width, height), dpi=labels.dpi, facecolor=_SURFACE)
     axes = figure.add_subplot()
     axes.set_facecolor(_SURFACE)
     for side in ("top", "right"):
@@ -143,7 +145,7 @@ def _titles(axes, title: str, subtitle: str) -> None:
 
 
 def _daily_chart(inputs: ChartInputs, labels: ChartLabels):
-    figure, axes = _figure()
+    figure, axes = _figure(labels)
     days = [day for day, _ in inputs.daily]
     axes.plot(days, [float(v) for _, v in inputs.daily], color=_HISTORY, linewidth=2,
               marker="o", markersize=3, label=labels.revenue)  # fmt: skip
@@ -162,7 +164,7 @@ def _daily_chart(inputs: ChartInputs, labels: ChartLabels):
 
 
 def _monthly_chart(inputs: ChartInputs, texts: ChartLabels):
-    figure, axes = _figure()
+    figure, axes = _figure(texts)
     labels = [label for label, _ in inputs.monthly]
     axes.bar(labels, [float(v) for _, v in inputs.monthly], color=_HISTORY, width=0.6)
     axes.grid(axis="x", visible=False)
@@ -176,7 +178,7 @@ def _monthly_chart(inputs: ChartInputs, texts: ChartLabels):
 
 
 def _weekday_chart(inputs: ChartInputs, texts: ChartLabels):
-    figure, axes = _figure()
+    figure, axes = _figure(texts)
     names = [name for name, _ in inputs.weekday]
     axes.bar(names, [float(v) for _, v in inputs.weekday], color=_HISTORY, width=0.6)
     axes.grid(axis="x", visible=False)
@@ -187,7 +189,7 @@ def _weekday_chart(inputs: ChartInputs, texts: ChartLabels):
 
 def _products_chart(inputs: ChartInputs, labels: ChartLabels):
     rows = list(reversed(inputs.top_products))  # largest at the top
-    figure, axes = _figure(height=max(2.5, 0.45 * len(rows) + 1.5))
+    figure, axes = _figure(labels, height=max(2.5, 0.45 * len(rows) + 1.5))
     axes.barh([label for label, _ in rows], [float(v) for _, v in rows],
               color=_HISTORY, height=0.6)  # fmt: skip
     axes.grid(axis="y", visible=False)

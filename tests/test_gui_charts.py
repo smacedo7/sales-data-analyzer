@@ -192,10 +192,23 @@ class InteractionTests(ChartsTestCase):
         )
         axes = page.chart.axes
         before = axes.get_xlim()
-        page.chart.toolbar.push_current()  # what the zoom tool does before changing limits
+        page.chart.navigation.push_current()  # what the zoom tool does before changing limits
         axes.set_xlim(before[0] + 2, before[1] - 2)
-        page.chart.toolbar.home()
+        page.chart.navigation.home()
         self.assertEqual(axes.get_xlim(), before)
+
+    def test_toolbar_drives_pan_and_zoom_modes(self) -> None:
+        page = self.page_for(daily_session(21))
+        home, back, forward, pan, zoom = page.chart.toolbar.actions()
+        pan.trigger()
+        self.assertEqual(str(page.chart.navigation.mode), "pan/zoom")
+        self.assertTrue(pan.isChecked())
+        zoom.trigger()
+        self.assertEqual(str(page.chart.navigation.mode), "zoom rect")
+        self.assertEqual((pan.isChecked(), zoom.isChecked()), (False, True))
+        zoom.trigger()
+        self.assertEqual(str(page.chart.navigation.mode), "")
+        self.assertFalse(home.icon().isNull())
 
     def test_screen_charts_use_a_lower_dpi_than_png_files(self) -> None:
         from sales_data_analyzer.gui.pages.charts import SCREEN_DPI
