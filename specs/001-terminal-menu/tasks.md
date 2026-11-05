@@ -36,7 +36,7 @@ Single project: `src/sales_data_analyzer/`, `tests/` at repository root.
 **Purpose**: cross-platform test command, CI and Ruff, before feature code.
 
 - [X] T001 Make `test_dependency_isolation` independent of the caller's `PYTHONPATH` in tests/test_importing.py
-  - **Files**: `tests/test_importing.py`, `CLAUDE.md`, `README.md`, `.claude/skills/project-verification/SKILL.md`, `.specify/memory/constitution.md` (PATCH 1.0.1 via `/speckit-constitution`: test command without prefix)
+  - **Files**: `tests/test_importing.py`, `README.md`, local agent guidance and verification notes, `.specify/memory/constitution.md` (PATCH 1.0.1 via `/speckit-constitution`: test command without prefix)
   - **Acceptance**: the subprocess receives `env={**os.environ, "PYTHONPATH": <abs path to src>}`; `uv run python -m unittest discover -s tests` passes with no prefix on macOS/Linux/Windows; docs show the prefix-free command (keep a note that the old prefix still works).
   - **Tests**: existing 42 tests pass without `PYTHONPATH=src`; still pass with it.
   - **Done when**: both commands give `Ran 42 tests ... OK`; constitution reads v1.0.1 with the prefix-free command; commit `test: run dependency isolation check without external PYTHONPATH`.

@@ -54,8 +54,8 @@ no shell-specific behaviour
 Post-design re-check (after data-model and contracts and the independent
 analysis): still passes — existing files touched are `__init__.py` (entry
 point), `main.py`, one test's subprocess environment, `pyproject.toml`/
-`uv.lock` (dev group), README, `docs/product-vision.md`, `CLAUDE.md`, the
-project-verification skill, a PATCH amendment of the constitution's test
+`uv.lock` (dev group), README, `docs/product-vision.md`, the local agent
+guidance and verification notes, a PATCH amendment of the constitution's test
 command, and the UML. Error messages carry counts only (Principle IV).
 
 ## Architecture
