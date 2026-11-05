@@ -285,6 +285,7 @@ PT_BR: dict[str, str] = {
     "report.write_failed": "Não foi possível gravar o PDF nesse local. Nenhum arquivo foi criado.",
     "report.all_data": "todo o histórico",
     "report.range": "{start} a {end}",
+    "report.file_prefix": "relatorio-vendas",
     # -- forms ------------------------------------------------------------------
     "form.company.new": "Nova empresa",
     "form.company.edit": "Editar empresa",
@@ -610,6 +611,7 @@ EN: dict[str, str] = {
     "report.write_failed": "The PDF could not be written there. No file was created.",
     "report.all_data": "whole history",
     "report.range": "{start} to {end}",
+    "report.file_prefix": "sales-report",
     "form.company.new": "New company",
     "form.company.edit": "Edit company",
     "form.company.name": "Name",

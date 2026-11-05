@@ -29,6 +29,7 @@ from sales_data_analyzer.application import (
 from sales_data_analyzer.charts.images import ChartWriteError
 from sales_data_analyzer.importing import ImportValidationError
 
+from .pdf_report import ReportWriteError
 from .texts import id_list, t
 
 
@@ -59,6 +60,7 @@ def describe_failure(error: BaseException) -> str:
         ConcurrentChangeError: "error.concurrent",
         StorageLimitError: "error.storage_limit",
         ChartWriteError: "error.folder",
+        ReportWriteError: "report.write_failed",
     }
     for kind, key in simple.items():
         if isinstance(error, kind):

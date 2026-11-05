@@ -6,10 +6,12 @@ from .charts import ChartsPage
 from .forecast import ForecastPage
 from .home import HomePage
 from .overview import OverviewPage
+from .report import ReportPage
 from .sales import SalesPage
 
 DEFAULT_PAGES = (
     HomePage, OverviewPage, CatalogPage, SalesPage, AnalysesPage, ForecastPage, ChartsPage,
+    ReportPage,
 )  # fmt: skip
 """Page classes shown by default."""
 
@@ -21,5 +23,6 @@ __all__ = [
     "ForecastPage",
     "HomePage",
     "OverviewPage",
+    "ReportPage",
     "SalesPage",
 ]
