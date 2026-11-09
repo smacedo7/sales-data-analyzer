@@ -402,6 +402,16 @@ confusion matrix applies. RMSE above MAE shows that a few days have much larger
 errors than the average. The evaluation days also select the method, so the
 error is somewhat optimistic.
 
+![Daily revenue with the estimate of the selected method](docs/images/daily_revenue.png)
+
+![Monthly revenue](docs/images/monthly_revenue.png)
+
+![Top products by revenue](docs/images/top_products.png)
+
+The images above are the PNG charts saved by the application (terminal option
+22, or the Charts page in the window). The estimate line in the daily chart
+shows the selected method's next 7 days, so its dates change with the run date.
+
 Reference: [scikit-learn LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html).
 
 ## UML and Level 1 Delivery
