@@ -381,6 +381,27 @@ straight line and a line with weekday effects) evaluated on rolling 7-day
 blocks, with negative estimates floored at zero and explicit wording when the
 evidence is limited. See [`docs/forecast-comparison.md`](docs/forecast-comparison.md).
 
+### Forecast error on the demonstration data
+
+The desktop window and the terminal menu (option 20) show these metrics for
+the 42-day demonstration company, using the level 3 comparison with two
+evaluation blocks (14 evaluated days). Values are in the revenue unit (R$):
+
+| Method | MAE | RMSE | MAE relative to last value |
+| --- | ---: | ---: | ---: |
+| Linear trend (selected) | 34.65 | 43.48 | 0.48 |
+| 7-day average | 38.76 | 50.13 | 0.54 |
+| Linear trend + weekday | 40.87 | 47.78 | 0.57 |
+| Same weekday last week | 55.19 | 63.42 | 0.77 |
+| Last value | 71.91 | 82.10 | 1.00 |
+
+These figures come from a run on the day the demonstration data was
+generated; the last day is yesterday, so the numbers change on other dates.
+Regression metrics measure error in reais, not classification accuracy, so no
+confusion matrix applies. RMSE above MAE shows that a few days have much larger
+errors than the average. The evaluation days also select the method, so the
+error is somewhat optimistic.
+
 Reference: [scikit-learn LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html).
 
 ## UML and Level 1 Delivery
