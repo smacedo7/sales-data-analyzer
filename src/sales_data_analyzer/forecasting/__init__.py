@@ -12,6 +12,23 @@ from typing import Literal
 from sales_data_analyzer.domain.sales_dataset import SalesDataset
 
 
+RefusalReason = Literal[
+    "missing_days", "constant_revenue", "calendar_range", "not_finite", "test_days",
+    "short_history",
+]
+
+
+class ForecastRefusal(ValueError):
+    """A forecast refused for a documented reason; the message stays the level 1 text.
+
+    `reason` lets interfaces explain the refusal without parsing the message.
+    """
+
+    def __init__(self, message: str, reason: RefusalReason) -> None:
+        self.reason = reason
+        super().__init__(message)
+
+
 @dataclass(frozen=True)
 class DailyRevenue:
     """One calendar day and its exact observed or explicitly assumed revenue."""
@@ -80,7 +97,7 @@ def daily_revenue(data: SalesDataset, *, missing_days: Literal["reject", "zero"]
     rows: list[DailyRevenue] = []
     while current <= end:
         if current not in totals and missing_days == "reject":
-            raise ValueError("history has missing days; explicitly select zero only for complete records")
+            raise ForecastRefusal("history has missing days; explicitly select zero only for complete records", "missing_days")
         rows.append(DailyRevenue(current, totals.get(current, Decimal(0))))
         if current == end:
             break
@@ -102,7 +119,7 @@ def _errors(actual: list[float], predicted: list[float]) -> ErrorMetrics:
     metrics = ErrorMetrics(sum(abs(d) for d in differences) / len(differences),
                            sqrt(sum(d * d for d in differences) / len(differences)))
     if not isfinite(metrics.mae) or not isfinite(metrics.rmse):
-        raise ValueError("evaluation errors exceed finite floating-point range")
+        raise ForecastRefusal("evaluation errors exceed finite floating-point range", "not_finite")
     return metrics
 
 
@@ -125,20 +142,20 @@ class RevenueForecaster:
         _positive_integer(horizon, "horizon")
         _positive_integer(test_days, "test_days")
         if test_days < 2:
-            raise ValueError("at least two test days are required")
+            raise ForecastRefusal("at least two test days are required", "test_days")
         history = daily_revenue(data, missing_days=missing_days, timezone=timezone)
         if len(history) < test_days + 5:
-            raise ValueError("history requires at least five training and two test days")
+            raise ForecastRefusal("history requires at least five training and two test days", "short_history")
         try:
             future_dates = tuple(history[-1].day + timedelta(days=i) for i in range(1, horizon + 1))
             values = [float(row.revenue) for row in history]
         except (OverflowError, ValueError) as exc:
-            raise ValueError("history or horizon exceeds numeric/calendar range") from exc
+            raise ForecastRefusal("history or horizon exceeds numeric/calendar range", "calendar_range") from exc
         if any(not isfinite(v) for v in values):
-            raise ValueError("revenue must be finite at the ML boundary")
+            raise ForecastRefusal("revenue must be finite at the ML boundary", "not_finite")
         split = len(history) - test_days
         if len(set(values[:split])) < 2:
-            raise ValueError("training revenue must vary to learn a trend")
+            raise ForecastRefusal("training revenue must vary to learn a trend", "constant_revenue")
         from sklearn.linear_model import LinearRegression
 
         origin = history[0].day
@@ -151,7 +168,7 @@ class RevenueForecaster:
         model.fit(features, values)
         future_values = [float(v) for v in model.predict([[(day - origin).days] for day in future_dates])]
         if any(not isfinite(v) for v in estimates + future_values):
-            raise ValueError("predictions must be finite")
+            raise ForecastRefusal("predictions must be finite", "not_finite")
         return ForecastResult(history[:split], history[split:],
             tuple(Prediction(row.day, value) for row, value in zip(history[split:], estimates, strict=True)),
             model_errors, baseline_errors, baseline,

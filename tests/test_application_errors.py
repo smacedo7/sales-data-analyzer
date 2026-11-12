@@ -48,3 +48,20 @@ class SessionSkeletonTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InvalidPeriodKindTests(unittest.TestCase):
+    def test_each_period_refusal_names_its_kind(self) -> None:
+        from datetime import date
+
+        from sales_data_analyzer.application import InvalidPeriodError, Selection
+
+        cases = {
+            "incomplete": (date(2026, 1, 2), None),
+            "reversed": (date(2026, 1, 2), date(2026, 1, 1)),
+            "out_of_range": (date(2026, 1, 1), date.max),
+        }
+        for kind, (start, end) in cases.items():
+            with self.subTest(kind=kind), self.assertRaises(InvalidPeriodError) as caught:
+                Selection(start, end)
+            self.assertEqual(caught.exception.kind, kind)

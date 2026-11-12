@@ -10,12 +10,14 @@ requires-python = ">=3.14"
 dependencies = [
     "matplotlib>=3.11.2",
     "pandas>=3.1.0",
+    "pyside6-essentials>=6.12.0",
     "scikit-learn>=1.9.1",
     "sqlalchemy>=2.1.6",
 ]
 
 [project.scripts]
 sales-data-analyzer = "sales_data_analyzer:main"
+sales-data-analyzer-desktop = "sales_data_analyzer:desktop_main"
 
 [build-system]
 requires = ["uv_build>=0.11.27,<0.12.0"]

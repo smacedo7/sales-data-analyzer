@@ -16,6 +16,17 @@ _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _OFFSET = re.compile(r"([+-])(\d{2}):(\d{2})")
 _INTEGER = re.compile(r"[0-9]{1,18}")
 
+MAX_HORIZON = 365
+"""Largest number of days a forecast may estimate."""
+DEFAULT_HORIZON = 7
+"""Days estimated when the user leaves the horizon blank."""
+MIN_TEST_DAYS = 2
+"""Fewest test days the level 2 forecaster accepts."""
+DEFAULT_TEST_DAYS = 2
+"""Test days used when the user leaves the value blank."""
+DEFAULT_CHART_FOLDER = Path("reports")
+"""Folder for chart images when the user leaves it blank (relative to the working folder)."""
+
 
 class InputError(ValueError):
     """Typed text does not match the expected format; message says what is expected."""
@@ -118,3 +129,36 @@ def parse_path(text: str, *, posix: bool | None = None) -> Path:
     if posix if posix is not None else os.name == "posix":
         value = value.replace("\\ ", " ")
     return Path(value)
+
+
+def parse_optional_text(text: str) -> str | None:
+    """Return trimmed text, or None when blank (keep the current value)."""
+    value = text.strip()
+    return value or None
+
+
+def parse_folder(text: str) -> Path:
+    """Return the chart folder; blank means DEFAULT_CHART_FOLDER."""
+    return DEFAULT_CHART_FOLDER if not text.strip() else parse_path(text)
+
+
+def parse_horizon(text: str) -> int:
+    """Return the forecast horizon (1 to MAX_HORIZON days); blank means DEFAULT_HORIZON."""
+    if not text.strip():
+        return DEFAULT_HORIZON
+    return parse_positive_int(text, maximum=MAX_HORIZON)
+
+
+def parse_test_days(text: str) -> int:
+    """Return the number of test days (at least MIN_TEST_DAYS); blank means the default."""
+    if not text.strip():
+        return DEFAULT_TEST_DAYS
+    value = parse_positive_int(text)
+    if value < MIN_TEST_DAYS:
+        raise InputError(f"expected at least {MIN_TEST_DAYS} test days")
+    return value
+
+
+def parse_optional_offset(text: str) -> timedelta:
+    """Return a UTC offset; blank means +00:00."""
+    return timedelta(0) if not text.strip() else parse_utc_offset(text)

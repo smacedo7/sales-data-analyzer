@@ -125,3 +125,33 @@ class RegressionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ForecastRefusalReasonTests(unittest.TestCase):
+    """Refusals carry a typed reason so interfaces never parse English messages."""
+
+    def test_forecaster_and_comparison_refusals_name_their_reason(self) -> None:
+        from datetime import date, timedelta
+        from decimal import Decimal
+
+        from sales_data_analyzer.forecasting import (
+            ConstantRevenueError,
+            DailyRevenue,
+            ForecastRefusal,
+            compare_methods,
+        )
+
+        start = date(2026, 1, 5)
+        gap = tuple(
+            DailyRevenue(start + timedelta(days=i), Decimal(i + 1))
+            for i in (0, 1, 3) + tuple(range(4, 14))
+        )
+        with self.assertRaises(ForecastRefusal) as caught:
+            compare_methods(gap)
+        self.assertEqual(caught.exception.reason, "missing_days")
+        short = tuple(DailyRevenue(start + timedelta(days=i), Decimal(i + 1)) for i in range(5))
+        with self.assertRaises(ForecastRefusal) as caught:
+            compare_methods(short)
+        self.assertEqual(caught.exception.reason, "short_history")
+        self.assertEqual(ConstantRevenueError().reason, "constant_revenue")
+        self.assertIsInstance(ConstantRevenueError(), ValueError)

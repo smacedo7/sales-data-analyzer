@@ -1,13 +1,14 @@
 # Sales Data Analyzer
 
-A Python project for sales analytics and basic daily revenue forecasting,
-with a desktop application planned for a later stage.
+A Python project for sales analytics and daily revenue forecasting, with a
+terminal menu and a desktop window over the same application services.
 
 The current implementation provides validated sales entities, financial and
 product analyses, atomic CSV import, temporal exploration, an honest comparison of
 forecast methods and terminal-friendly charts. Data lives in a local SQLite
-database. Features are available through an interactive terminal menu (levels 2
-and 3), the Python API and executable synthetic-data examples.
+database. Features are available through a PySide6 desktop window (level 4), an
+interactive terminal menu (levels 2 and 3), the Python API and executable
+synthetic-data examples.
 
 ## Implemented Features
 
@@ -28,8 +29,10 @@ and 3), the Python API and executable synthetic-data examples.
   (pandas, exact `Decimal` totals); period comparison; a rolling-origin
   comparison of five forecast methods against baselines; text bar charts and PNG
   charts (Matplotlib).
-
-PDF reports and a desktop interface remain planned.
+- Level 4: PySide6 desktop window in Brazilian Portuguese over the same SQLite
+  database: guided home with demo data, overview cards, catalog, sales, CSV
+  import, periods, analyses, forecast comparison, explorable charts (zoom, pan,
+  hover values) and a PDF report.
 
 ## Getting Started
 
@@ -59,6 +62,50 @@ Expected accounting results:
 | Gross profit | 630 |
 | Gross margin | 0.6 (60%) |
 | Average order value | 75 |
+
+## Running the Desktop Window
+
+```sh
+uv sync --locked
+uv run sales-data-analyzer-desktop
+# or: uv run python -m sales_data_analyzer.gui --database data/demo.sqlite3
+```
+
+The window opens the same database file as the terminal menu (or the one given
+with `--database`) and shows it in the status bar. Its texts are in Brazilian
+Portuguese; every visible text lives in `gui/texts.py` (an English catalog with
+the same keys is ready), together with the Brazilian number and date formats
+(`1.310,00`, `05/01/2026`).
+
+A side navigation leads to these pages:
+
+| Page | What it does |
+| --- | --- |
+| Início (Home) | company cards, new company and **Load demo data** (a café with six weeks of fictitious sales, imported through the normal CSV path) |
+| Visão geral (Overview) | colored indicator cards (revenue, cost, gross profit, margin, average order, sales) and the top products |
+| Produtos (Products) | register, edit and delete products (only products no sale uses) |
+| Vendas (Sales) | sales of the period; record a sale with several items; import a CSV file; delete a sale |
+| Análises (Analyses) | financial summary, products, sales by day/week/month, weekday, categories, two-period comparison |
+| Previsões (Forecasts) | comparison of forecast methods against baselines (choose the method behind the estimates) and the level 2 linear forecast |
+| Gráficos (Charts) | one chart at a time — daily revenue with the estimate, monthly revenue, top products or weekday averages — with zoom, pan, the exact value under the mouse and PNG export |
+| Relatório PDF (PDF report) | preview and export of an A4 PDF with company, period, indicators, top products and charts |
+
+The header shows the company and the period, with presets (all data, last 30
+days, last month with sales) and a date range. Screens without data explain
+the next step with a button, and every refusal (duplicate code, invalid file
+line, product in use, short history, storage failure) is a Portuguese sentence;
+nothing is changed when an action is refused.
+
+The window does not compute any figure itself: every number comes from the
+application services (`SalesSession`, the analyses, the forecast comparison and
+`chart_data()`), and the window only formats it for display. Amounts are typed as
+plain decimals (`10.50`) and stored exactly. Deleting, replacing a file or
+treating missing days as zero always asks first, with No as the default. The PDF
+is written with Qt's own `QPdfWriter` (no extra dependency) to a temporary file
+that replaces the target only when complete. Close the window to exit; every
+confirmed change is already saved. Running the window and the terminal on the
+same file at the same time is detected as a change by another copy, and the
+second program asks to restart.
 
 ## Running the Terminal Menu
 
@@ -148,7 +195,11 @@ Tests cover SQLite persistence (exact round trips, reopening, constraints,
 rollback after injected failures, locked and invalid files, always on temporary
 databases), maintenance use cases, exploration totals against the financial
 analysis, each forecast method on hand-made series, rolling-origin leakage
-(a spy method never sees its evaluation days), text and PNG charts, the application layer, terminal parsing, formatting and scripted
+(a spy method never sees its evaluation days), text and PNG charts, the desktop
+window (headless Qt with a scripted prompter: every page, Portuguese texts and
+refusal wording, empty states, demo data, chart type/period/zoom/hover/resizing,
+the PDF report, real button clicks, rollback after storage failures and
+reopening the database), the application layer, terminal parsing, formatting and scripted
 menu sessions, an end-to-end run of the real entry point, CSV validation, atomic import, ID preservation, domain validation, exact accounting, empty/zero/loss cases, product
 identity, ranking ties, temporal ordering, holdout isolation, baseline errors,
 missing days, timezone conversion and invalid forecast inputs.
@@ -177,13 +228,14 @@ checks on every pull request to `main` or `dev` and every push to `dev`.
 | scikit-learn | Linear regression |
 | SQLite through SQLAlchemy Core | Local persistence (no ORM; STRICT tables, exact decimal text) |
 | pandas | Grouping for temporal and category summaries (`Decimal` object columns) |
-| Matplotlib | PNG charts with the non-interactive Agg renderer |
+| Matplotlib | PNG charts (Agg renderer) and charts embedded in the window |
+| PySide6-Essentials (Qt 6) | Desktop window (level 4); tests run with Qt's offscreen platform |
 | NumPy and SciPy | Numerical dependencies of scikit-learn |
 | Ruff (development only) | Lint and format checks |
 | GitHub Actions | Continuous integration on Ubuntu, macOS and Windows |
 
-PySide6 is the candidate for the level 4 desktop interface. Pandas and
-Matplotlib are imported only when a summary or image is requested.
+Pandas and Matplotlib are imported only when a summary or image is requested;
+PySide6 is imported only by the desktop window.
 
 ## Architecture and Object Model
 
@@ -197,7 +249,8 @@ src/sales_data_analyzer/
 ├── persistence/   # Level 3: SQLite repository (SQLAlchemy Core) and schema
 ├── exploration/   # Level 3: grouped summaries with pandas and exact Decimal totals
 ├── charts/        # Level 3: text bar charts and Matplotlib PNG files
-└── cli/           # Terminal menu, command line, input parsing, output formatting
+├── cli/           # Terminal menu, command line, input parsing, output formatting
+└── gui/           # Level 4: PySide6 window, pages, texts catalog, charts, PDF report
 examples/
 ├── import_and_analyze.py
 ├── analysis_and_forecast.py
@@ -328,6 +381,37 @@ straight line and a line with weekday effects) evaluated on rolling 7-day
 blocks, with negative estimates floored at zero and explicit wording when the
 evidence is limited. See [`docs/forecast-comparison.md`](docs/forecast-comparison.md).
 
+### Forecast error on the demonstration data
+
+The desktop window and the terminal menu (option 20) show these metrics for
+the 42-day demonstration company, using the level 3 comparison with two
+evaluation blocks (14 evaluated days). Values are in the revenue unit (R$):
+
+| Method | MAE | RMSE | MAE relative to last value |
+| --- | ---: | ---: | ---: |
+| Linear trend (selected) | 34.65 | 43.48 | 0.48 |
+| 7-day average | 38.76 | 50.13 | 0.54 |
+| Linear trend + weekday | 40.87 | 47.78 | 0.57 |
+| Same weekday last week | 55.19 | 63.42 | 0.77 |
+| Last value | 71.91 | 82.10 | 1.00 |
+
+These figures come from a run on the day the demonstration data was
+generated; the last day is yesterday, so the numbers change on other dates.
+Regression metrics measure error in reais, not classification accuracy, so no
+confusion matrix applies. RMSE above MAE shows that a few days have much larger
+errors than the average. The evaluation days also select the method, so the
+error is somewhat optimistic.
+
+![Daily revenue with the estimate of the selected method](docs/images/daily_revenue.png)
+
+![Monthly revenue](docs/images/monthly_revenue.png)
+
+![Top products by revenue](docs/images/top_products.png)
+
+The images above are the PNG charts saved by the application (terminal option
+22, or the Charts page in the window). The estimate line in the daily chart
+shows the selected method's next 7 days, so its dates change with the run date.
+
 Reference: [scikit-learn LinearRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html).
 
 ## UML and Level 1 Delivery
@@ -347,7 +431,9 @@ A [Portuguese video script for level 2](docs/video-script-level-two-pt.md) plans
 its presentation under three minutes.
 The level 3 additions (repository, persistence, exploration, forecast methods and
 charts) are modeled in [level-three.drawio](docs/diagrams/level-three.drawio)
-([preview](docs/diagrams/level-three.svg)).
+([preview](docs/diagrams/level-three.svg)). The level 4 desktop window and its
+dependencies are modeled in [level-four.drawio](docs/diagrams/level-four.drawio)
+([preview](docs/diagrams/level-four.svg)).
 
 See the [delivery checklist](docs/level-one-delivery.md) for implementation and
 test evidence, and the [Portuguese video script](docs/video-script-pt.md) for a
@@ -371,10 +457,10 @@ extensions. Open editable files in [draw.io](https://app.diagrams.net/).
 - [x] Level 2: interactive terminal menu over the existing operations (in memory).
 - [x] Continuous integration and Ruff lint checks.
 - [x] Implement descriptive temporal analyses and charts (terminal and PNG).
-- [ ] Add reporting and PDF export.
+- [x] Add reporting and PDF export (level 4 desktop window).
 - [x] Level 3: SQLite persistence with exact amounts and atomic writes, data
   maintenance, temporal exploration, forecast method comparison and charts.
-- [ ] Build the desktop interface.
+- [x] Level 4: PySide6 desktop interface over the same services and database.
 
 ## Development Workflow
 

@@ -143,3 +143,36 @@ class ParsingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SharedOptionParserTests(unittest.TestCase):
+    """Option parsers shared by the terminal menu and the desktop interface."""
+
+    def test_blank_means_the_documented_defaults(self) -> None:
+        from datetime import timedelta
+        from pathlib import Path
+
+        from sales_data_analyzer.cli import parsing
+
+        self.assertEqual(parsing.parse_horizon(" "), parsing.DEFAULT_HORIZON)
+        self.assertEqual(parsing.parse_test_days(""), parsing.DEFAULT_TEST_DAYS)
+        self.assertEqual(parsing.parse_optional_offset(""), timedelta(0))
+        self.assertEqual(parsing.parse_folder(""), Path("reports"))
+        self.assertIsNone(parsing.parse_optional_text("  "))
+        self.assertEqual(parsing.parse_optional_text(" Pen "), "Pen")
+
+    def test_limits_are_enforced(self) -> None:
+        from datetime import timedelta
+
+        from sales_data_analyzer.cli import parsing
+
+        self.assertEqual(parsing.parse_horizon(str(parsing.MAX_HORIZON)), parsing.MAX_HORIZON)
+        self.assertEqual(parsing.parse_optional_offset("-03:00"), timedelta(hours=-3))
+        for parser, text in (
+            (parsing.parse_horizon, str(parsing.MAX_HORIZON + 1)),
+            (parsing.parse_horizon, "0"),
+            (parsing.parse_test_days, "1"),
+            (parsing.parse_optional_offset, "3"),
+        ):
+            with self.subTest(text=text), self.assertRaises(parsing.InputError):
+                parser(text)
